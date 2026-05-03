@@ -82,21 +82,15 @@ export function AuthStatus() {
       </button>
       {showMenu && (
         <div
-          className="absolute right-0 z-30 mt-1 w-56 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
+          className="absolute right-0 z-30 mt-1 w-60 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
           onMouseLeave={() => setShowMenu(false)}
         >
           <div className="px-2 py-1 text-[11px] text-slate-500">
             {session.user.email ?? session.user.id}
           </div>
-          <button
-            className="block w-full rounded px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100"
-            onClick={() => {
-              setShowMenu(false);
-              setShowIdentity(true);
-            }}
-          >
-            Change my role
-          </button>
+          <div className="px-2 py-1 text-[10px] text-slate-400">
+            Role is permanent on this account. To switch roles, sign out and sign in with another email.
+          </div>
           <button
             className="block w-full rounded px-2 py-1.5 text-left text-sm text-rose-600 hover:bg-rose-50"
             onClick={async () => {
@@ -110,16 +104,14 @@ export function AuthStatus() {
           </button>
         </div>
       )}
-      {showIdentity && session.user && (
+      {showIdentity && session.user && !role && (
         <IdentitySetupWrapper
           user={session.user}
-          initialRole={role ?? undefined}
           onSaved={(r) => {
             setRole(r);
             setViewer(r);
             setShowIdentity(false);
           }}
-          onCancel={role ? () => setShowIdentity(false) : undefined}
         />
       )}
     </div>
@@ -129,14 +121,10 @@ export function AuthStatus() {
 /** Pulls familyId from cloud config at render time so IdentitySetup stays purely presentational. */
 function IdentitySetupWrapper({
   user,
-  initialRole,
   onSaved,
-  onCancel,
 }: {
   user: User;
-  initialRole?: Author;
   onSaved: (role: Author) => void;
-  onCancel?: () => void;
 }) {
   const familyId =
     JSON.parse(localStorage.getItem('inheritance.cloud') ?? '{}').familyId ?? 'default';
@@ -144,9 +132,7 @@ function IdentitySetupWrapper({
     <IdentitySetup
       user={user}
       familyId={familyId}
-      initialRole={initialRole}
       onSaved={onSaved}
-      onCancel={onCancel}
     />
   );
 }

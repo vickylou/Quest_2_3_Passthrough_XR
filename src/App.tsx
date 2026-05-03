@@ -8,12 +8,18 @@ import { CompareView } from './components/CompareView';
 import { StickyBalanceBar } from './components/StickyBalanceBar';
 import { AuthStatus } from './components/AuthStatus';
 import { SyncIndicator } from './components/SyncIndicator';
+import { SignIn } from './components/SignIn';
+import { IdentitySetup } from './components/IdentitySetup';
 import { useStore } from './state/store';
 import { clearImportFromUrl, readImportFromUrl } from './lib/share';
+import { useAuth } from './lib/useAuth';
+import { loadCloudConfig } from './lib/cloud';
 
 export default function App() {
   const [showCompare, setShowCompare] = useState(false);
   const importScenario = useStore((s) => s.importScenario);
+  const setViewer = useStore((s) => s.setViewer);
+  const auth = useAuth();
 
   useEffect(() => {
     const incoming = readImportFromUrl();
@@ -26,6 +32,41 @@ export default function App() {
     if (ok) importScenario(incoming);
     clearImportFromUrl();
   }, [importScenario]);
+
+  // Once we know who's signed in, mirror their role onto the local viewer cache.
+  useEffect(() => {
+    if (auth.role) setViewer(auth.role);
+  }, [auth.role, setViewer]);
+
+  // Cloud is set up but the user hasn't signed in yet → block the app.
+  if (auth.configured && !auth.loading && !auth.session) {
+    return <SignIn mode="screen" />;
+  }
+
+  // Signed in, but no family role yet → block the app on role selection.
+  if (auth.configured && auth.session && !auth.loading && !auth.role) {
+    const familyId = loadCloudConfig()?.familyId ?? 'default';
+    return (
+      <IdentitySetup
+        user={auth.session.user}
+        familyId={familyId}
+        mode="screen"
+        onSaved={() => {
+          /* AuthState picks up the role on the next loadIdentity. */
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Initial auth check — keep the screen quiet until we know.
+  if (auth.configured && auth.loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Loading…
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

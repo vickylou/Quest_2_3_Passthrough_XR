@@ -9,12 +9,15 @@ export function IdentitySetup({
   initialRole,
   onSaved,
   onCancel,
+  mode = 'modal',
 }: {
   user: User;
   familyId: string;
   initialRole?: Author;
   onSaved: (role: Author) => void;
   onCancel?: () => void;
+  /** 'modal' = dark backdrop popup. 'screen' = full-page light background. */
+  mode?: 'modal' | 'screen';
 }) {
   const [role, setRole] = useState<Author>(initialRole ?? 'lisa');
   const [saving, setSaving] = useState(false);
@@ -33,9 +36,17 @@ export function IdentitySetup({
     }
   }
 
+  const backdrop = mode === 'screen' ? 'bg-slate-50' : 'bg-slate-900/40';
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-3 md:items-center md:p-6">
+    <div className={`fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 md:items-center md:p-6 ${backdrop}`}>
       <div className="card w-full max-w-md">
+        {mode === 'screen' && (
+          <div className="mb-4 text-center">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-800">
+              Inheritance Calculator
+            </h1>
+          </div>
+        )}
         <h2 className="mb-2 text-lg font-semibold">Who are you in the family?</h2>
         <p className="mb-3 text-xs text-slate-500">
           Pick once. From now on, scenarios you create are tagged with this name, and you only see

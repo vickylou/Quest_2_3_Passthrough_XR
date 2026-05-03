@@ -136,6 +136,30 @@ function makeBaseScenario(
   };
 }
 
+/**
+ * Fresh blank slate for a new user. Asset cards are present (Helmhaus etc.)
+ * with their canonical values, but every percentage is 0 — the four sister
+ * chips therefore start at €0 and only fill up as the user allocates shares.
+ */
+export function blankScenario(author: Author = 'lisa'): Scenario {
+  const now = Date.now();
+  const zeroAlloc = { lisa: 0, vicky: 0, jackie: 0, alexa: 0 };
+  return {
+    id: 'blank',
+    name: 'My new scenario',
+    author,
+    visibility: 'private',
+    notes: '',
+    assumptions: '',
+    createdAt: now,
+    updatedAt: now,
+    status: 'draft',
+    assets: defaultAssets().map((a) => ({ ...a, allocations: { ...zeroAlloc } })),
+    transfers: [],
+    corrections: [],
+  };
+}
+
 export function v0Scenario(): Scenario {
   return makeBaseScenario(
     'v0',

@@ -9,7 +9,7 @@ import {
   Transfer,
   Visibility,
 } from '../types';
-import { defaultState, loadState, saveState } from './persistence';
+import { defaultState, exampleState, loadState, saveState } from './persistence';
 import { uid } from '../lib/format';
 import { syncDelete, syncPushOne } from './sync';
 
@@ -47,6 +47,7 @@ interface StoreState extends PersistedState {
   setNotes: (notes: string) => void;
   setAssumptions: (assumptions: string) => void;
   resetToDefault: () => void;
+  loadExample: () => void;
   clearAll: () => void;
   replaceAll: (state: PersistedState) => void;
   // assets
@@ -300,6 +301,8 @@ export const useStore = create<StoreState>()((set, get) => ({
     }),
 
   resetToDefault: () => set(() => persistAndReturn(defaultState())),
+
+  loadExample: () => set(() => persistAndReturn(exampleState())),
 
   clearAll: () =>
     set(() => {

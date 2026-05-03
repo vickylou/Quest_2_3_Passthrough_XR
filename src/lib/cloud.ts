@@ -60,12 +60,22 @@ create table if not exists public.scenarios (
 alter table public.scenarios enable row level security;
 
 -- 2. Identities table: maps each Supabase auth user → family role.
+--    Each (role, family_id) pair is unique, so the first email to sign up as
+--    "vicky" claims that role and no one else can take it later.
 create table if not exists public.identities (
   auth_uid uuid primary key references auth.users(id) on delete cascade,
   role text not null check (role in ('lisa','vicky','jackie','alexa','mum','dad','test')),
   family_id text not null default 'default',
   created_at timestamptz not null default now()
 );
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'identities_role_family_unique'
+  ) then
+    alter table public.identities
+      add constraint identities_role_family_unique unique (role, family_id);
+  end if;
+end $$;
 alter table public.identities enable row level security;
 
 -- 3. Helper: returns the signed-in user's family role (null if not signed in / no identity yet).
@@ -102,10 +112,19 @@ create policy "scenarios update own" on public.scenarios for update
 create policy "scenarios delete own" on public.scenarios for delete
   using (auth.uid() is not null and author = public.viewer_role());
 
--- 5. Identities policies: each user can read/manage only their own row.
+-- 5. Identities policies: each user can read and INSERT their own row, but
+--    cannot update or delete it once set. The role is permanent — to change
+--    roles, sign in with a different email account.
 drop policy if exists "users manage own identity" on public.identities;
-create policy "users manage own identity" on public.identities
-  for all using (auth.uid() = auth_uid) with check (auth.uid() = auth_uid);
+drop policy if exists "users read own identity" on public.identities;
+drop policy if exists "users insert own identity" on public.identities;
+
+create policy "users read own identity" on public.identities
+  for select using (auth.uid() = auth_uid);
+create policy "users insert own identity" on public.identities
+  for insert with check (auth.uid() = auth_uid);
+-- Intentionally NO update / delete policies: the row is immutable from the
+-- client. Server-only changes still possible via the service-role key.
 
 -- 6. Indexes (idempotent).
 create index if not exists idx_scenarios_vis on public.scenarios (visibility, deleted);
@@ -260,14 +279,29 @@ export async function loadIdentity(user: User): Promise<Author | null> {
   return data.role as Author;
 }
 
+/**
+ * Inserts the signed-in user's role row. The role is permanent — there is no
+ * UPDATE path. If the user already has a row, this is a no-op. If the role is
+ * already claimed by another auth account, the unique constraint surfaces a
+ * clear error to the UI.
+ */
 export async function saveIdentity(user: User, role: Author, familyId: string): Promise<void> {
   const c = getClient();
   if (!c) throw new Error('Cloud not configured.');
-  const { error } = await c.from('identities').upsert(
-    { auth_uid: user.id, role, family_id: familyId },
-    { onConflict: 'auth_uid' }
+  const { error } = await c.from('identities').insert(
+    { auth_uid: user.id, role, family_id: familyId }
   );
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Friendlier messages for the two common cases.
+    if (/duplicate key|unique/.test(error.message) && /role/.test(error.message)) {
+      throw new Error(`Role "${role}" is already taken by someone else in this family. Pick another, or contact whoever set up the cloud to free it.`);
+    }
+    if (/duplicate key|unique/.test(error.message) && /auth_uid/.test(error.message)) {
+      // Same auth user already has a role row — ignore (idempotent).
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 // ---------------------------------------------------------------------------

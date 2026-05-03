@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { signInWithEmail } from '../lib/cloud';
 
-export function SignIn({ onCancel }: { onCancel?: () => void }) {
+export function SignIn({
+  onCancel,
+  mode = 'modal',
+}: {
+  onCancel?: () => void;
+  /**
+   * 'modal'  — dark backdrop, used as a popup over an existing page.
+   * 'screen' — light backdrop, used as a full-page sign-in gate.
+   */
+  mode?: 'modal' | 'screen';
+}) {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -17,10 +27,23 @@ export function SignIn({ onCancel }: { onCancel?: () => void }) {
     else setError(res.error);
   }
 
+  const backdrop = mode === 'screen' ? 'bg-slate-50' : 'bg-slate-900/40';
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-3 md:items-center md:p-6">
+    <div className={`fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 md:items-center md:p-6 ${backdrop}`}>
       <div className="card w-full max-w-md">
-        <h2 className="mb-2 text-lg font-semibold">Sign in to share scenarios</h2>
+        {mode === 'screen' && (
+          <div className="mb-4 text-center">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-800">
+              Inheritance Calculator
+            </h1>
+            <p className="text-xs text-slate-500">
+              Lisa · Vicky · Jackie · Alexa
+            </p>
+          </div>
+        )}
+        <h2 className="mb-2 text-lg font-semibold">
+          {mode === 'screen' ? 'Sign in to start' : 'Sign in to share scenarios'}
+        </h2>
         <p className="mb-3 text-xs text-slate-500">
           Enter your email — we'll send you a sign-in link. Click it on this device and you're in
           for ~30 days. No password, no account creation form.

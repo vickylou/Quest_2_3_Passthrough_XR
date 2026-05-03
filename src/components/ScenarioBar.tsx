@@ -19,6 +19,7 @@ export function ScenarioBar() {
   const deleteScenario = useStore((s) => s.deleteScenario);
   const setStatus = useStore((s) => s.setStatus);
   const resetToDefault = useStore((s) => s.resetToDefault);
+  const loadExample = useStore((s) => s.loadExample);
   const saveAsNew = useStore((s) => s.saveAsNew);
 
   const [renaming, setRenaming] = useState(false);
@@ -194,11 +195,21 @@ export function ScenarioBar() {
         <button
           className="btn"
           onClick={() => {
-            if (confirm('Reset to example data? Current scenarios will be lost.'))
-              resetToDefault();
+            if (confirm('Load demo data? Three example scenarios will be added — current scenarios will be lost.'))
+              loadExample();
           }}
         >
           Load example
+        </button>
+        <button
+          className="btn-ghost text-slate-500"
+          onClick={() => {
+            if (confirm('Start fresh with a single blank scenario? Current scenarios will be lost.'))
+              resetToDefault();
+          }}
+          title="Reset to a single blank scenario"
+        >
+          Start fresh
         </button>
         <SavedBadge lastSavedAt={lastSavedAt} />
       </div>
