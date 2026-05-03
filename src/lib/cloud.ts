@@ -19,6 +19,20 @@ import { Author, Scenario } from '../types';
 
 const CONFIG_KEY = 'inheritance.cloud';
 
+/**
+ * Build-time defaults from Vite env vars. When the deploy injects these
+ * secrets the family doesn't need to paste anything — the app autoconfigures
+ * cloud sync on first load and the only step left is signing in.
+ */
+const ENV_URL = (import.meta.env.VITE_SUPABASE_URL ?? '').trim();
+const ENV_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
+const ENV_FAMILY_ID = (import.meta.env.VITE_SUPABASE_FAMILY_ID ?? 'default').trim() || 'default';
+
+/** True if the deploy baked credentials into the bundle. */
+export function isPreconfigured(): boolean {
+  return ENV_URL.length > 0 && ENV_ANON_KEY.length > 0;
+}
+
 export interface CloudConfig {
   url: string;
   anonKey: string;
@@ -103,6 +117,15 @@ create index if not exists idx_scenarios_shared on public.scenarios using gin (s
 // ---------------------------------------------------------------------------
 
 export function loadCloudConfig(): CloudConfig | null {
+  // Build-time env vars take precedence so the family always uses the
+  // same project — rotating the key is just a redeploy away.
+  if (isPreconfigured()) {
+    return {
+      url: ENV_URL.replace(/\/+$/, ''),
+      anonKey: ENV_ANON_KEY,
+      familyId: ENV_FAMILY_ID,
+    };
+  }
   try {
     if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(CONFIG_KEY);

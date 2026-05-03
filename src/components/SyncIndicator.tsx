@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { isCloudConfigured, subscribeSyncStatus, syncPull, SyncStatus } from '../state/sync';
-import { onAuthStateChange } from '../lib/cloud';
+import { isPreconfigured, onAuthStateChange } from '../lib/cloud';
 import { CloudSetup } from './CloudSetup';
 
 export function SyncIndicator() {
@@ -47,6 +47,11 @@ export function SyncIndicator() {
   }
 
   if (!configured) {
+    // No env vars baked in AND nothing in localStorage → user must paste keys.
+    if (isPreconfigured()) {
+      // Should not happen — preconfigured implies configured. Defensive fallback.
+      return null;
+    }
     return (
       <>
         <button
@@ -73,13 +78,15 @@ export function SyncIndicator() {
         <span className="hidden sm:inline">{label}</span>
         <span className="sm:hidden">↻</span>
       </button>
-      <button
-        className="btn-ghost px-2 py-0.5 text-xs"
-        onClick={() => setShowSetup(true)}
-        title="Cloud sync settings"
-      >
-        ⚙
-      </button>
+      {!isPreconfigured() && (
+        <button
+          className="btn-ghost px-2 py-0.5 text-xs"
+          onClick={() => setShowSetup(true)}
+          title="Cloud sync settings"
+        >
+          ⚙
+        </button>
+      )}
       {showSetup && <CloudSetup onClose={() => setShowSetup(false)} />}
     </>
   );
