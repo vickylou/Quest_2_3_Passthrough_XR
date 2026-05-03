@@ -11,7 +11,7 @@
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
-    "javascript-lp-solver": "^0.4.24",
+    "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "react": "^18.3.1",

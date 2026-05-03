@@ -14,6 +14,25 @@ export const PEOPLE: { id: PersonId; name: string; colors: PersonColors }[] = [
 
 export const PERSON_IDS: PersonId[] = ['lisa', 'vicky', 'jackie', 'alexa'];
 
+/**
+ * Anyone who can author a scenario or send a transfer. The four sisters
+ * actually receive inheritance; "mum" and "dad" only act as senders of
+ * transfers and as scenario authors.
+ */
+export type Author = PersonId | 'mum' | 'dad';
+
+export const AUTHORS: { id: Author; name: string }[] = [
+  { id: 'lisa', name: 'Lisa' },
+  { id: 'vicky', name: 'Vicky' },
+  { id: 'jackie', name: 'Jackie' },
+  { id: 'alexa', name: 'Alexa' },
+  { id: 'mum', name: 'Mum' },
+  { id: 'dad', name: 'Dad' },
+];
+
+/** "From" of a transfer. `null` is legacy (was "external") and now treated as Mum & Dad combined. */
+export type TransferSource = PersonId | 'mum' | 'dad' | 'mum_and_dad' | null;
+
 export type Allocation = Record<PersonId, number>; // percentages summing to 100
 
 export interface Asset {
@@ -21,27 +40,34 @@ export interface Asset {
   name: string;
   totalValue: number;
   allocations: Allocation;
-  /** When true, the auto-equalizer must not touch this asset's allocations. */
-  locked: boolean;
-  /** When true, the auto-equalizer is allowed to redistribute this asset. */
-  flexible: boolean;
-  /**
-   * Optional whitelist limiting which sisters may receive shares of this asset
-   * during auto-equalization. If undefined, all four are allowed.
-   */
-  allowedRecipients?: PersonId[];
-  /** Soft preference signal: if false, splitting this asset is discouraged. */
-  splittable: boolean;
   /** Selects an inline SVG illustration for the card's right column. */
   imageKey?: 'house' | 'plot' | 'cash' | 'field';
+  /** Per-card colour tone. Drives card border and illustration tint. */
+  tone?: AssetTone;
   /**
    * Optional informational breakdown of what makes up `totalValue`. Display-only
    * — balance math still uses `totalValue`. The remainder
    * (`totalValue − sum(subItems)`) is shown as a "Base value" line.
    */
   subItems?: AssetSubItem[];
+  /**
+   * Free-form longer description of how the asset is internally structured
+   * (e.g. for a house, who lives where, who pays what). Currently rendered
+   * as a placeholder nested card; will be expanded in a future iteration.
+   */
+  internalBreakdown?: string;
   notes?: string;
 }
+
+export type AssetTone =
+  | 'sky'
+  | 'rose'
+  | 'amber'
+  | 'lime'
+  | 'emerald'
+  | 'orange'
+  | 'violet'
+  | 'slate';
 
 export interface AssetSubItem {
   id: string;
@@ -52,85 +78,33 @@ export interface AssetSubItem {
 export interface Transfer {
   id: string;
   name: string;
-  /** Null means external (e.g. parents) — adds to `to` without subtracting from anyone. */
-  from: PersonId | null;
+  /** Null means Mum & Dad (legacy "external"). */
+  from: TransferSource;
   to: PersonId;
   amount: number;
 }
 
 export interface Correction {
   id: string;
-  category: string;
   person: PersonId;
-  description: string;
   amount: number;
   active: boolean;
   note: string;
 }
-
-export type Constraint =
-  | {
-      id: string;
-      kind: 'hard';
-      type: 'minBalance';
-      person: PersonId;
-      amount: number;
-      note: string;
-      active: boolean;
-    }
-  | {
-      id: string;
-      kind: 'hard';
-      type: 'minAssetShare';
-      assetId: string;
-      person: PersonId;
-      percent: number;
-      note: string;
-      active: boolean;
-    }
-  | {
-      id: string;
-      kind: 'hard';
-      type: 'fixAssetAllocation';
-      assetId: string;
-      allocations: Allocation;
-      note: string;
-      active: boolean;
-    }
-  | {
-      id: string;
-      kind: 'soft';
-      type: 'preferFullAsset';
-      assetId: string;
-      person: PersonId;
-      weight: number;
-      note: string;
-      active: boolean;
-    }
-  | {
-      id: string;
-      kind: 'soft';
-      type: 'preferLiquidity';
-      person: PersonId;
-      weight: number;
-      note: string;
-      active: boolean;
-    }
-  | {
-      id: string;
-      kind: 'soft';
-      type: 'avoidSplitAsset';
-      assetId: string;
-      weight: number;
-      note: string;
-      active: boolean;
-    };
 
 export type ScenarioStatus = 'draft' | 'preferred' | 'final';
 
 export interface Scenario {
   id: string;
   name: string;
+  /** Who created this scenario. */
+  author: Author;
+  /**
+   * Optional name for a joint / family-meeting scenario. When set, this
+   * scenario shows up grouped under that meeting in the picker instead of
+   * under its author.
+   */
+  meeting?: string;
   notes: string;
   assumptions: string;
   createdAt: number;
@@ -139,16 +113,14 @@ export interface Scenario {
   assets: Asset[];
   transfers: Transfer[];
   corrections: Correction[];
-  constraints: Constraint[];
 }
-
-export type Mode = 'manual' | 'auto' | 'suggestions';
 
 export interface PersistedState {
   schemaVersion: number;
   activeId: string;
   scenarios: Record<string, Scenario>;
-  mode: Mode;
+  /** Last time any change was persisted (epoch ms). Used for the "saved" indicator. */
+  lastSavedAt?: number;
 }
 
 export interface Balances {
@@ -162,6 +134,15 @@ export interface Balances {
   equalTarget: number;
   equalTargetWithoutCorrections: number;
   diff: Record<PersonId, number>;
+}
+
+/** Per-person breakdown used by the expandable sticky bar chips. */
+export interface PersonBreakdown {
+  perAsset: Array<{ assetId: string; assetName: string; tone?: AssetTone; amount: number; percent: number }>;
+  transfersIn: Array<{ id: string; name: string; from: TransferSource; amount: number }>;
+  transfersOut: Array<{ id: string; name: string; to: PersonId; amount: number }>;
+  corrections: Array<{ id: string; note: string; amount: number }>;
+  total: number;
 }
 
 export interface ValidationIssue {

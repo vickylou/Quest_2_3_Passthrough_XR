@@ -1,29 +1,27 @@
 import { create } from 'zustand';
 import {
   Asset,
-  Constraint,
+  Author,
   Correction,
-  Mode,
   PersistedState,
-  PersonId,
   Scenario,
   ScenarioStatus,
   Transfer,
 } from '../types';
 import { defaultState, loadState, saveState } from './persistence';
 import { uid } from '../lib/format';
-import { equalize as runEqualize } from '../solver/equalize';
 
 interface StoreState extends PersistedState {
   // ---- selectors ----
   active: () => Scenario;
   // ---- mutations ----
-  setMode: (mode: Mode) => void;
   setActive: (id: string) => void;
   updateActive: (mut: (s: Scenario) => Scenario) => void;
-  saveAs: (name: string) => void;
+  saveAsNew: (overrides?: Partial<Scenario>) => string;
   duplicateActive: () => void;
   renameActive: (name: string) => void;
+  setAuthor: (author: Author) => void;
+  setMeeting: (meeting: string | undefined) => void;
   deleteScenario: (id: string) => void;
   setStatus: (status: ScenarioStatus) => void;
   setNotes: (notes: string) => void;
@@ -43,17 +41,12 @@ interface StoreState extends PersistedState {
   addCorrection: () => void;
   updateCorrection: (id: string, mut: (c: Correction) => Correction) => void;
   removeCorrection: (id: string) => void;
-  // constraints
-  addConstraint: (preset?: Partial<Constraint>) => void;
-  updateConstraint: (id: string, mut: (c: Constraint) => Constraint) => void;
-  removeConstraint: (id: string) => void;
-  // solver
-  runEqualizer: () => string[];
 }
 
 function persistAndReturn<T extends PersistedState>(s: T): T {
-  saveState(s);
-  return s;
+  const next = { ...s, lastSavedAt: Date.now() } as T;
+  saveState(next);
+  return next;
 }
 
 export const useStore = create<StoreState>()((set, get) => ({
@@ -63,8 +56,6 @@ export const useStore = create<StoreState>()((set, get) => ({
     const s = get();
     return s.scenarios[s.activeId];
   },
-
-  setMode: (mode) => set((s) => persistAndReturn({ ...s, mode })),
 
   setActive: (id) =>
     set((s) => {
@@ -83,25 +74,29 @@ export const useStore = create<StoreState>()((set, get) => ({
       });
     }),
 
-  saveAs: (name) =>
+  saveAsNew: (overrides) => {
+    const id = uid('scn');
+    let savedId = id;
     set((s) => {
       const cur = s.scenarios[s.activeId];
       if (!cur) return s;
-      const id = uid('scn');
       const copy: Scenario = {
         ...cur,
+        ...overrides,
         id,
-        name,
         status: 'draft',
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
+      savedId = id;
       return persistAndReturn({
         ...s,
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
-    }),
+    });
+    return savedId;
+  },
 
   duplicateActive: () =>
     set((s) => {
@@ -111,7 +106,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       const copy: Scenario = {
         ...cur,
         id,
-        name: `${cur.name} (Kopie)`,
+        name: `${cur.name} (copy)`,
         status: 'draft',
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -134,6 +129,32 @@ export const useStore = create<StoreState>()((set, get) => ({
       });
     }),
 
+  setAuthor: (author) =>
+    set((s) => {
+      const cur = s.scenarios[s.activeId];
+      if (!cur) return s;
+      return persistAndReturn({
+        ...s,
+        scenarios: {
+          ...s.scenarios,
+          [s.activeId]: { ...cur, author, updatedAt: Date.now() },
+        },
+      });
+    }),
+
+  setMeeting: (meeting) =>
+    set((s) => {
+      const cur = s.scenarios[s.activeId];
+      if (!cur) return s;
+      return persistAndReturn({
+        ...s,
+        scenarios: {
+          ...s.scenarios,
+          [s.activeId]: { ...cur, meeting: meeting || undefined, updatedAt: Date.now() },
+        },
+      });
+    }),
+
   deleteScenario: (id) =>
     set((s) => {
       if (!s.scenarios[id]) return s;
@@ -149,7 +170,7 @@ export const useStore = create<StoreState>()((set, get) => ({
     set((s) => {
       const cur = s.scenarios[s.activeId];
       if (!cur) return s;
-      let scenarios = { ...s.scenarios };
+      const scenarios = { ...s.scenarios };
       if (status === 'final') {
         for (const id of Object.keys(scenarios)) {
           if (scenarios[id].status === 'final' && id !== s.activeId) {
@@ -193,10 +214,11 @@ export const useStore = create<StoreState>()((set, get) => ({
     set(() => {
       try {
         localStorage.removeItem('inheritance.v1');
+        localStorage.removeItem('inheritance.v2');
       } catch {
         /* ignore */
       }
-      return defaultState();
+      return persistAndReturn(defaultState());
     }),
 
   replaceAll: (state) => set(() => persistAndReturn(state)),
@@ -208,12 +230,10 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s.assets,
         {
           id: uid('asset'),
-          name: 'Neuer Vermögenswert',
+          name: 'New asset',
           totalValue: 0,
           allocations: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
-          locked: false,
-          flexible: false,
-          splittable: true,
+          tone: 'slate',
         },
       ],
     })),
@@ -237,9 +257,9 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s.transfers,
         {
           id: uid('tr'),
-          name: 'Neue Zahlung',
-          from: 'lisa' as PersonId,
-          to: 'vicky' as PersonId,
+          name: 'New payment',
+          from: 'mum_and_dad',
+          to: 'vicky',
           amount: 0,
         },
       ],
@@ -264,9 +284,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s.corrections,
         {
           id: uid('corr'),
-          category: 'Sonstiges',
           person: 'lisa',
-          description: 'Neue Korrektur',
           amount: 0,
           active: false,
           note: '',
@@ -285,48 +303,4 @@ export const useStore = create<StoreState>()((set, get) => ({
       ...s,
       corrections: s.corrections.filter((c) => c.id !== id),
     })),
-
-  addConstraint: (preset) =>
-    get().updateActive((s) => {
-      const base: Constraint = preset
-        ? ({ ...(preset as Constraint), id: uid('con'), active: preset.active ?? true } as Constraint)
-        : ({
-            id: uid('con'),
-            kind: 'soft',
-            type: 'avoidSplitAsset',
-            assetId: s.assets[0]?.id ?? '',
-            weight: 1,
-            note: '',
-            active: true,
-          } as Constraint);
-      return { ...s, constraints: [...s.constraints, base] };
-    }),
-
-  updateConstraint: (id, mut) =>
-    get().updateActive((s) => ({
-      ...s,
-      constraints: s.constraints.map((c) => (c.id === id ? mut(c) : c)),
-    })),
-
-  removeConstraint: (id) =>
-    get().updateActive((s) => ({
-      ...s,
-      constraints: s.constraints.filter((c) => c.id !== id),
-    })),
-
-  runEqualizer: () => {
-    const s = get();
-    const cur = s.scenarios[s.activeId];
-    if (!cur) return ['No active scenario.'];
-    const r = runEqualize(cur);
-    if (r.ok) {
-      set((curState) =>
-        persistAndReturn({
-          ...curState,
-          scenarios: { ...curState.scenarios, [s.activeId]: r.scenario },
-        })
-      );
-    }
-    return r.messages;
-  },
 }));

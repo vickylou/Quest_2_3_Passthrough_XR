@@ -4,6 +4,10 @@ import { useStore } from '../state/store';
 import { formatEuro, formatPercent, uid } from '../lib/format';
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
+import { toneStyle } from '../lib/tones';
+import { HELMHAUS_ID, WEBERHAUS_ID } from '../data/seed';
+
+const HOUSE_IDS = new Set<string>([HELMHAUS_ID, WEBERHAUS_ID]);
 
 export function AssetTable() {
   const active = useStore((s) => s.scenarios[s.activeId]);
@@ -18,13 +22,14 @@ export function AssetTable() {
         <button onClick={addAsset} className="btn">+ Asset</button>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-3" data-pdf-capture="asset-list">
         {active.assets.map((asset) => (
           <AssetCard
             key={asset.id}
             asset={asset}
             onChange={(mut) => updateAsset(asset.id, mut)}
             onRemove={() => removeAsset(asset.id)}
+            isHouse={HOUSE_IDS.has(asset.id)}
           />
         ))}
       </div>
@@ -36,56 +41,82 @@ function AssetCard({
   asset,
   onChange,
   onRemove,
+  isHouse,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   onRemove: () => void;
+  isHouse: boolean;
 }) {
+  const tone = toneStyle(asset.tone);
   const sum = PERSON_IDS.reduce((acc, p) => acc + (asset.allocations[p] ?? 0), 0);
   const sumOff = Math.abs(sum - 100) > 0.05;
+  const hasBreakdown = (asset.subItems?.length ?? 0) > 0;
 
   return (
-    <div>
-      {/* Title sits outside the card body */}
-      <AssetTitle name={asset.name} onRename={(name) => onChange((a) => ({ ...a, name }))} />
+    <article
+      className="overflow-hidden rounded-lg border shadow-sm"
+      style={{ borderColor: tone.border, background: tone.bg }}
+    >
+      <div className="grid grid-cols-[1fr_auto] gap-0">
+        {/* Left: title + value + percentages + nested breakdowns */}
+        <div className="min-w-0 p-3 md:p-4">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <AssetTitle name={asset.name} onRename={(name) => onChange((a) => ({ ...a, name }))} />
+              {asset.notes && (
+                <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
+              )}
+            </div>
+            <button
+              onClick={onRemove}
+              className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+              title="Remove asset"
+              aria-label="Remove asset"
+            >
+              ×
+            </button>
+          </div>
 
-      <div className="card overflow-hidden p-0">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto]">
-          {/* Left column */}
-          <div className="space-y-4 p-4">
+          <div className="mb-2 flex items-end gap-3">
             <TotalValueField
               value={asset.totalValue}
               onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
             />
+            <span
+              className={`pill ${sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
+              title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+            >
+              Σ {formatPercent(sum)}
+            </span>
+          </div>
 
-            <PercentGrid asset={asset} onChange={onChange} />
+          <PercentGrid asset={asset} onChange={onChange} />
 
-            {asset.subItems !== undefined && (
-              <BreakdownPanel asset={asset} onChange={onChange} />
-            )}
+          {(hasBreakdown || isHouse) && (
+            <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} />
+          )}
 
-            <NotesField
-              value={asset.notes ?? ''}
-              onChange={(notes) => onChange((a) => ({ ...a, notes }))}
+          {isHouse && (
+            <InternalBreakdownPanel
+              value={asset.internalBreakdown ?? ''}
+              onChange={(v) => onChange((a) => ({ ...a, internalBreakdown: v }))}
+              accent={tone.accent}
             />
-          </div>
-
-          {/* Right column: illustration */}
-          <div className="hidden border-l border-slate-200 bg-slate-50 p-3 md:block md:w-44">
-            <AssetIllustration imageKey={asset.imageKey} className="h-full w-full" />
-          </div>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs">
-          <span className={sumOff ? 'font-medium text-rose-600' : 'text-slate-500'}>
-            Sum: {formatPercent(sum)} {sumOff ? '· should be 100 %' : '✓'}
-          </span>
-          <button onClick={onRemove} className="btn-ghost text-rose-600 hover:bg-rose-50">
-            Remove asset
-          </button>
+        {/* Right: illustration well, ~doubled width vs the previous version */}
+        <div
+          className="hidden border-l md:block md:w-72"
+          style={{ background: tone.imageBg, borderColor: tone.border }}
+        >
+          <div className="flex h-full items-center justify-center p-3">
+            <AssetIllustration imageKey={asset.imageKey} className="h-full w-full max-h-44" tint={tone.accent} />
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -95,35 +126,31 @@ function AssetTitle({ name, onRename }: { name: string; onRename: (n: string) =>
 
   if (editing) {
     return (
-      <div className="mb-2 flex items-center gap-2">
-        <input
-          autoFocus
-          className="field max-w-xs text-lg font-semibold"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => {
-            const next = draft.trim() || name;
-            onRename(next);
+      <input
+        autoFocus
+        className="field max-w-full text-base font-semibold"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          onRename(draft.trim() || name);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            onRename(draft.trim() || name);
             setEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const next = draft.trim() || name;
-              onRename(next);
-              setEditing(false);
-            } else if (e.key === 'Escape') {
-              setDraft(name);
-              setEditing(false);
-            }
-          }}
-        />
-      </div>
+          } else if (e.key === 'Escape') {
+            setDraft(name);
+            setEditing(false);
+          }
+        }}
+      />
     );
   }
 
   return (
-    <h3
-      className="mb-2 cursor-pointer text-lg font-semibold tracking-tight text-slate-800 hover:text-slate-600"
+    <button
+      className="text-left text-base font-semibold tracking-tight text-slate-800 hover:text-slate-600 md:text-lg"
       title="Click to rename"
       onClick={() => {
         setDraft(name);
@@ -131,25 +158,25 @@ function AssetTitle({ name, onRename }: { name: string; onRename: (n: string) =>
       }}
     >
       {name}
-    </h3>
+    </button>
   );
 }
 
 function TotalValueField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+      <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
         Total value
       </label>
-      <div className="relative mt-1">
+      <div className="relative mt-0.5">
         <input
           type="number"
           inputMode="decimal"
-          className="field pr-8"
+          className="field w-44 pr-7 py-1.5 text-sm tabular-nums"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
           €
         </span>
       </div>
@@ -166,15 +193,12 @@ function PercentGrid({
 }) {
   const sum = PERSON_IDS.reduce((acc, p) => acc + (asset.allocations[p] ?? 0), 0);
   const sumOff = Math.abs(sum - 100) > 0.05;
-
-  // The proportional suggestion uses the most recently edited person as the
-  // anchor, leaving the others to scale. We track the last edited person in
-  // local state so the suggestion target shifts with user intent.
   const [anchor, setAnchor] = useState<PersonId | null>(null);
 
-  const suggestion = sumOff && anchor
-    ? suggestProportional(asset.allocations, anchor, asset.allocations[anchor] ?? 0)
-    : null;
+  const suggestion =
+    sumOff && anchor
+      ? suggestProportional(asset.allocations, anchor, asset.allocations[anchor] ?? 0)
+      : null;
 
   function setShare(person: PersonId, value: number) {
     setAnchor(person);
@@ -190,28 +214,23 @@ function PercentGrid({
   }
 
   return (
-    <div>
-      <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
-        Distribution (% per person)
-      </label>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {PEOPLE.map((p) => {
-          const current = asset.allocations[p.id] ?? 0;
-          const sug = suggestion && anchor !== p.id ? suggestion[p.id] : null;
-          return (
-            <PersonShareCell
-              key={p.id}
-              name={p.name}
-              colors={p.colors}
-              percent={current}
-              euro={(asset.totalValue * current) / 100}
-              suggestion={sug}
-              onChange={(v) => setShare(p.id, v)}
-              onAcceptSuggestion={() => applySuggestion(p.id)}
-            />
-          );
-        })}
-      </div>
+    <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+      {PEOPLE.map((p) => {
+        const current = asset.allocations[p.id] ?? 0;
+        const sug = suggestion && anchor !== p.id ? suggestion[p.id] : null;
+        return (
+          <PersonShareCell
+            key={p.id}
+            name={p.name}
+            colors={p.colors}
+            percent={current}
+            euro={(asset.totalValue * current) / 100}
+            suggestion={sug}
+            onChange={(v) => setShare(p.id, v)}
+            onAcceptSuggestion={() => applySuggestion(p.id)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -235,40 +254,40 @@ function PersonShareCell({
 }) {
   const gradient = `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`;
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-2">
-      <div className="mb-1 flex items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 rounded-full"
-          style={{ background: gradient }}
-          aria-hidden
-        />
-        <span className="text-sm font-medium text-slate-700">{name}</span>
+    <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <div className="flex items-center justify-between gap-1">
+        <span className="flex items-center gap-1 text-xs font-medium text-slate-700">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: gradient }}
+            aria-hidden
+          />
+          {name}
+        </span>
+        <span className="text-[10px] tabular-nums text-slate-400">{formatEuro(euro)}</span>
       </div>
-      <div className="relative">
+      <div className="relative mt-1">
         <input
           type="number"
           inputMode="decimal"
           step="0.01"
-          className="field pr-8 text-right tabular-nums"
+          className="field py-1 pr-7 text-right text-sm tabular-nums"
           value={percent}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
           %
         </span>
       </div>
-      <div className="mt-1 flex items-center justify-between text-[11px]">
-        <span className="text-slate-500 tabular-nums">{formatEuro(euro)}</span>
-        {suggestion !== null && Math.abs(suggestion - percent) > 0.01 && (
-          <button
-            onClick={onAcceptSuggestion}
-            className="text-slate-400 italic hover:text-slate-600"
-            title="Apply this value to balance to 100 %"
-          >
-            → {suggestion.toFixed(2)}
-          </button>
-        )}
-      </div>
+      {suggestion !== null && Math.abs(suggestion - percent) > 0.01 && (
+        <button
+          onClick={onAcceptSuggestion}
+          className="mt-0.5 text-[10px] italic text-slate-400 hover:text-slate-700"
+          title="Apply this value to balance to 100 %"
+        >
+          → {suggestion.toFixed(2)} %
+        </button>
+      )}
     </div>
   );
 }
@@ -276,15 +295,19 @@ function PersonShareCell({
 function BreakdownPanel({
   asset,
   onChange,
+  accent,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
+  accent: string;
 }) {
   const items = asset.subItems ?? [];
   const subSum = items.reduce((acc, i) => acc + (i.amount ?? 0), 0);
   const base = asset.totalValue - subSum;
-  const [open, setOpen] = useState(true);
 
+  function ensureItems(): AssetSubItem[] {
+    return asset.subItems ?? [];
+  }
   function addItem() {
     onChange((a) => ({
       ...a,
@@ -294,56 +317,51 @@ function BreakdownPanel({
   function updateItem(id: string, mut: (i: AssetSubItem) => AssetSubItem) {
     onChange((a) => ({
       ...a,
-      subItems: (a.subItems ?? []).map((i) => (i.id === id ? mut(i) : i)),
+      subItems: ensureItems().map((i) => (i.id === id ? mut(i) : i)),
     }));
   }
   function removeItem(id: string) {
-    onChange((a) => ({ ...a, subItems: (a.subItems ?? []).filter((i) => i.id !== id) }));
+    onChange((a) => ({ ...a, subItems: ensureItems().filter((i) => i.id !== id) }));
   }
 
   return (
     <details
-      open={open}
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
-      className="rounded-md border border-slate-200 bg-slate-50"
+      className="mt-2 rounded-md border bg-white"
+      style={{ borderColor: accent + '33' }}
     >
-      <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-slate-700">
-        Breakdown
+      <summary className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-slate-700">
+        ▸ Breakdown {items.length > 0 && <span className="text-slate-400">({items.length})</span>}
       </summary>
-      <div className="border-t border-slate-200 p-3 text-sm">
-        <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
-          <span>Component</span>
-          <span>Amount</span>
-        </div>
+      <div className="border-t border-slate-200 p-2 text-xs">
         <div className="space-y-1">
-          <div className="flex items-center justify-between rounded bg-white px-2 py-1">
+          <div className="flex items-center justify-between rounded bg-slate-50 px-2 py-1">
             <span className="text-slate-600">Base value</span>
             <span className="tabular-nums text-slate-700">{formatEuro(base)}</span>
           </div>
           {items.map((i) => (
-            <div key={i.id} className="flex items-center gap-2">
+            <div key={i.id} className="flex items-center gap-1.5">
               <input
-                className="field flex-1 text-sm"
+                className="field flex-1 py-1 text-xs"
                 value={i.label}
                 onChange={(e) => updateItem(i.id, (x) => ({ ...x, label: e.target.value }))}
               />
-              <div className="relative w-32">
+              <div className="relative w-24">
                 <input
                   type="number"
                   inputMode="decimal"
-                  className="field pr-6 text-right text-sm tabular-nums"
+                  className="field py-1 pr-5 text-right text-xs tabular-nums"
                   value={i.amount}
                   onChange={(e) =>
                     updateItem(i.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
                   }
                 />
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
                   €
                 </span>
               </div>
               <button
                 onClick={() => removeItem(i.id)}
-                className="btn-ghost px-2 py-1 text-rose-600 hover:bg-rose-50"
+                className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
                 title="Remove component"
               >
                 ×
@@ -351,8 +369,8 @@ function BreakdownPanel({
             </div>
           ))}
         </div>
-        <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
-          <button onClick={addItem} className="btn-ghost px-2 py-1 text-slate-600">
+        <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs">
+          <button onClick={addItem} className="btn-ghost px-2 py-0.5 text-slate-600">
             + Add component
           </button>
           <span className="font-medium tabular-nums text-slate-800">
@@ -360,8 +378,8 @@ function BreakdownPanel({
           </span>
         </div>
         {base < -0.5 && (
-          <p className="mt-2 text-xs text-rose-600">
-            Components add up to more than the total value. Increase the total or reduce a component.
+          <p className="mt-1 text-[10px] text-rose-600">
+            Components add up to more than the total. Increase the total or trim a component.
           </p>
         )}
       </div>
@@ -369,33 +387,24 @@ function BreakdownPanel({
   );
 }
 
-function NotesField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  if (value.length === 0) {
-    // collapsed by default when empty
-    return (
-      <details className="rounded-md border border-slate-200 bg-slate-50">
-        <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-slate-700">
-          Notes
-        </summary>
-        <div className="border-t border-slate-200 p-3">
-          <input
-            className="field"
-            placeholder="Optional note about this asset"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        </div>
-      </details>
-    );
-  }
+function InternalBreakdownPanel({
+  value,
+  onChange,
+  accent,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  accent: string;
+}) {
   return (
-    <details open className="rounded-md border border-slate-200 bg-slate-50">
-      <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-slate-700">
-        Notes
+    <details className="mt-2 rounded-md border bg-white" style={{ borderColor: accent + '33' }}>
+      <summary className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-slate-700">
+        ▸ Internal split (how the house is shared)
       </summary>
-      <div className="border-t border-slate-200 p-3">
-        <input
-          className="field"
+      <div className="border-t border-slate-200 p-2">
+        <textarea
+          className="field min-h-[80px] text-xs"
+          placeholder="Free text for now — paste a detailed split-up of who lives where, who pays what, future intentions, etc. We'll add structured fields once you've shared the full description."
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />

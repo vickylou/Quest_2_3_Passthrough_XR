@@ -1,19 +1,13 @@
 import { useState } from 'react';
-import { useStore } from './state/store';
 import { ScenarioBar } from './components/ScenarioBar';
 import { AssetTable } from './components/AssetTable';
 import { TransferList } from './components/TransferList';
 import { CorrectionList } from './components/CorrectionList';
-import { ConstraintsPanel } from './components/ConstraintsPanel';
 import { NotesPanel } from './components/NotesPanel';
-import { ModeToggle } from './components/ModeToggle';
-import { AutoModePanel } from './components/AutoModePanel';
-import { SuggestionsPanel } from './components/SuggestionsPanel';
 import { CompareView } from './components/CompareView';
 import { StickyBalanceBar } from './components/StickyBalanceBar';
 
 export default function App() {
-  const mode = useStore((s) => s.mode);
   const [showCompare, setShowCompare] = useState(false);
 
   return (
@@ -25,7 +19,7 @@ export default function App() {
               Inheritance Calculator
             </h1>
             <p className="hidden text-xs text-slate-500 md:block">
-              Lisa · Vicky · Jackie · Alexa — explore scenarios, capture wishes, generate suggestions.
+              Lisa · Vicky · Jackie · Alexa — drafts per person, joint meetings, side-by-side comparisons.
             </p>
           </div>
           <button className="btn" onClick={() => setShowCompare(true)}>
@@ -36,16 +30,11 @@ export default function App() {
 
       <StickyBalanceBar />
 
-      <main className="mx-auto max-w-6xl space-y-4 px-3 py-4 md:px-6 md:py-6">
+      <main className="mx-auto max-w-6xl space-y-3 px-3 py-4 md:px-6 md:py-6">
         <ScenarioBar />
-        <ModeToggle />
-        {mode === 'auto' && <AutoModePanel />}
-
         <AssetTable />
         <TransferList />
         <CorrectionList />
-        <ConstraintsPanel />
-        {mode === 'suggestions' && <SuggestionsPanel />}
         <NotesPanel />
 
         <footer className="py-6 text-center text-xs text-slate-400">
