@@ -11,6 +11,21 @@ import {
 } from '../types';
 import { defaultState, loadState, saveState } from './persistence';
 import { uid } from '../lib/format';
+import { syncDelete, syncPushOne } from './sync';
+
+/** Per-scenario debounce so we don't fire a network call on every keystroke. */
+const PUSH_DEBOUNCE_MS = 800;
+const pushTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function schedulePush(scenario: Scenario, previousVisibility: Visibility | undefined): void {
+  const existing = pushTimers.get(scenario.id);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    pushTimers.delete(scenario.id);
+    void syncPushOne(scenario, previousVisibility);
+  }, PUSH_DEBOUNCE_MS);
+  pushTimers.set(scenario.id, timer);
+}
 
 interface StoreState extends PersistedState {
   // ---- selectors ----
@@ -73,10 +88,13 @@ export const useStore = create<StoreState>()((set, get) => ({
       const cur = s.scenarios[s.activeId];
       if (!cur) return s;
       const next = { ...mut(cur), updatedAt: Date.now() };
-      return persistAndReturn({
+      const persisted = persistAndReturn({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
+      // Push only if it's a sharable scenario; private edits stay local.
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   saveAsNew: (overrides) => {
@@ -98,11 +116,13 @@ export const useStore = create<StoreState>()((set, get) => ({
         updatedAt: Date.now(),
       };
       savedId = id;
-      return persistAndReturn({
+      const persisted = persistAndReturn({
         ...s,
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
+      if (copy.visibility !== 'private') schedulePush(copy, copy.visibility);
+      return persisted;
     });
     return savedId;
   },
@@ -120,11 +140,13 @@ export const useStore = create<StoreState>()((set, get) => ({
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      return persistAndReturn({
+      const persisted = persistAndReturn({
         ...s,
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
+      if (copy.visibility !== 'private') schedulePush(copy, copy.visibility);
+      return persisted;
     }),
 
   renameActive: (name) =>
@@ -170,26 +192,27 @@ export const useStore = create<StoreState>()((set, get) => ({
     set((s) => {
       const cur = s.scenarios[s.activeId];
       if (!cur) return s;
-      return persistAndReturn({
+      const prevVisibility = cur.visibility;
+      const next = { ...cur, visibility, updatedAt: Date.now() };
+      const persisted = persistAndReturn({
         ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, visibility, updatedAt: Date.now() },
-        },
+        scenarios: { ...s.scenarios, [s.activeId]: next },
       });
+      schedulePush(next, prevVisibility);
+      return persisted;
     }),
 
   setSharedWith: (people) =>
     set((s) => {
       const cur = s.scenarios[s.activeId];
       if (!cur) return s;
-      return persistAndReturn({
+      const next = { ...cur, sharedWith: people, updatedAt: Date.now() };
+      const persisted = persistAndReturn({
         ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, sharedWith: people, updatedAt: Date.now() },
-        },
+        scenarios: { ...s.scenarios, [s.activeId]: next },
       });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   importScenario: (scenario) => {
@@ -220,9 +243,14 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   deleteScenario: (id) =>
     set((s) => {
-      if (!s.scenarios[id]) return s;
+      const target = s.scenarios[id];
+      if (!target) return s;
       const remaining = { ...s.scenarios };
       delete remaining[id];
+      // Soft-delete on the cloud if the scenario was visible to anyone else.
+      if (target.visibility !== 'private') {
+        void syncDelete(id);
+      }
       const ids = Object.keys(remaining);
       if (ids.length === 0) return persistAndReturn(defaultState());
       const activeId = s.activeId === id ? ids[0] : s.activeId;

@@ -7,6 +7,7 @@ import { NotesPanel } from './components/NotesPanel';
 import { CompareView } from './components/CompareView';
 import { StickyBalanceBar } from './components/StickyBalanceBar';
 import { ViewerPicker } from './components/ViewerPicker';
+import { SyncIndicator } from './components/SyncIndicator';
 import { useStore } from './state/store';
 import { clearImportFromUrl, readImportFromUrl } from './lib/share';
 
@@ -38,8 +39,9 @@ export default function App() {
               Lisa · Vicky · Jackie · Alexa — drafts per person, joint meetings, side-by-side comparisons.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ViewerPicker />
+            <SyncIndicator />
             <button className="btn" onClick={() => setShowCompare(true)}>
               Compare
             </button>
