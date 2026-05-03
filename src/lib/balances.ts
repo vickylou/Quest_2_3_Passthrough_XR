@@ -1,4 +1,5 @@
 import {
+  Allocation,
   Asset,
   Balances,
   Correction,
@@ -80,7 +81,7 @@ export function validateScenario(scenario: Scenario): ValidationIssue[] {
       issues.push({
         level: 'warning',
         assetId: asset.id,
-        message: `${asset.name}: Verteilung ergibt ${sum.toFixed(2)} % (sollte 100 % sein).`,
+        message: `${asset.name}: shares add up to ${sum.toFixed(2)} % (should be 100 %).`,
       });
     }
     for (const p of PERSON_IDS) {
@@ -89,7 +90,7 @@ export function validateScenario(scenario: Scenario): ValidationIssue[] {
         issues.push({
           level: 'error',
           assetId: asset.id,
-          message: `${asset.name}: ${p} hat ${v.toFixed(2)} % (muss zwischen 0 und 100 liegen).`,
+          message: `${asset.name}: ${p} = ${v.toFixed(2)} % (must be between 0 and 100).`,
         });
       }
     }
@@ -99,7 +100,7 @@ export function validateScenario(scenario: Scenario): ValidationIssue[] {
     if (t.amount < 0) {
       issues.push({
         level: 'error',
-        message: `Transfer "${t.name}": negativer Betrag.`,
+        message: `Payment "${t.name}": negative amount.`,
       });
     }
   }
@@ -130,4 +131,37 @@ export function transfersTouching(transfers: Transfer[], person: PersonId): Tran
 
 export function correctionsFor(corrections: Correction[], person: PersonId): Correction[] {
   return corrections.filter((c) => c.person === person);
+}
+
+/**
+ * Computes a "suggested" allocation for the OTHER persons given that one
+ * person's value is being edited. The remaining 100 − editedVal % is split
+ * across the others proportionally to their current values, so the rough
+ * shape of the existing distribution is preserved.
+ *
+ * If the others currently sum to 0 (nothing to scale), the deficit is split
+ * evenly across them.
+ */
+export function suggestProportional(
+  current: Allocation,
+  editedId: PersonId,
+  editedVal: number
+): Allocation {
+  const out: Allocation = { ...current, [editedId]: editedVal };
+  const target = 100 - editedVal;
+  const others = PERSON_IDS.filter((p) => p !== editedId);
+  const otherSum = others.reduce((acc, p) => acc + (current[p] ?? 0), 0);
+
+  if (otherSum <= 0) {
+    const each = target / others.length;
+    for (const p of others) out[p] = Math.max(0, each);
+    return out;
+  }
+
+  const factor = target / otherSum;
+  for (const p of others) {
+    const v = (current[p] ?? 0) * factor;
+    out[p] = Math.max(0, v);
+  }
+  return out;
 }

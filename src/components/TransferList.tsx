@@ -11,17 +11,18 @@ export function TransferList() {
     <div className="card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold">Direkte Zahlungen</h2>
+          <h2 className="text-lg font-semibold">Direct payments</h2>
           <p className="text-xs text-slate-500">
-            Geld, das zwischen Personen fliesst (z. B. Ausgleichszahlungen, Hilfe von den Eltern). "—" als Absender = externe Quelle.
+            Money flowing between people (e.g. equalisation payments, parental support).
+            Use "—" as the source for external money.
           </p>
         </div>
-        <button onClick={add} className="btn">+ Zahlung</button>
+        <button onClick={add} className="btn">+ Payment</button>
       </div>
 
       <div className="space-y-2">
         {transfers.length === 0 && (
-          <p className="text-sm text-slate-500">Keine Zahlungen erfasst.</p>
+          <p className="text-sm text-slate-500">No payments recorded yet.</p>
         )}
         {transfers.map((t) => (
           <div
@@ -29,7 +30,7 @@ export function TransferList() {
             className="grid grid-cols-1 gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 md:grid-cols-12 md:items-end"
           >
             <div className="md:col-span-4">
-              <label className="block text-xs text-slate-600">Bezeichnung</label>
+              <label className="block text-xs text-slate-600">Description</label>
               <input
                 className="field"
                 value={t.name}
@@ -37,7 +38,7 @@ export function TransferList() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs text-slate-600">Von</label>
+              <label className="block text-xs text-slate-600">From</label>
               <select
                 className="field"
                 value={t.from ?? ''}
@@ -48,14 +49,14 @@ export function TransferList() {
                   }))
                 }
               >
-                <option value="">— extern —</option>
+                <option value="">— external —</option>
                 {PEOPLE.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs text-slate-600">An</label>
+              <label className="block text-xs text-slate-600">To</label>
               <select
                 className="field"
                 value={t.to}
@@ -67,7 +68,7 @@ export function TransferList() {
               </select>
             </div>
             <div className="md:col-span-3">
-              <label className="block text-xs text-slate-600">Betrag (€)</label>
+              <label className="block text-xs text-slate-600">Amount (€)</label>
               <input
                 className="field"
                 type="number"

@@ -317,7 +317,7 @@ export const useStore = create<StoreState>()((set, get) => ({
   runEqualizer: () => {
     const s = get();
     const cur = s.scenarios[s.activeId];
-    if (!cur) return ['Kein aktives Szenario.'];
+    if (!cur) return ['No active scenario.'];
     const r = runEqualize(cur);
     if (r.ok) {
       set((curState) =>

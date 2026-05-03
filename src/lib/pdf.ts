@@ -6,7 +6,7 @@ import { fairnessScore, maxDeviation, sumAbsDeviation } from './fairness';
 import { formatEuro, formatPercent, formatSignedEuro } from './format';
 
 const DISCLAIMER =
-  'Die Korrekturwerte sind optionale Annahmen, keine rechtlichen Tatsachen. Vor Unterzeichnung mit Notar/Steuerberatung prüfen.';
+  'Correction values are optional assumptions, not legal facts. Verify with a notary or tax adviser before signing.';
 
 export function exportScenarioPDF(scenario: Scenario): void {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -15,15 +15,15 @@ export function exportScenarioPDF(scenario: Scenario): void {
   let y = margin;
 
   doc.setFontSize(16);
-  doc.text(`Erbteilung – ${scenario.name}`, margin, y);
+  doc.text(`Inheritance — ${scenario.name}`, margin, y);
   y += 22;
 
   doc.setFontSize(10);
   doc.setTextColor(120);
-  const created = new Date(scenario.createdAt).toLocaleDateString('de-CH');
-  const updated = new Date(scenario.updatedAt).toLocaleDateString('de-CH');
+  const created = new Date(scenario.createdAt).toLocaleDateString('en-CH');
+  const updated = new Date(scenario.updatedAt).toLocaleDateString('en-CH');
   doc.text(
-    `Status: ${statusLabel(scenario.status)}   Erstellt: ${created}   Aktualisiert: ${updated}`,
+    `Status: ${statusLabel(scenario.status)}   Created: ${created}   Updated: ${updated}`,
     margin,
     y
   );
@@ -32,16 +32,16 @@ export function exportScenarioPDF(scenario: Scenario): void {
   const balances = computeBalances(scenario);
   doc.setTextColor(40);
   doc.text(
-    `Pool: ${formatEuro(balances.estatePool)}   Ziel pro Person: ${formatEuro(balances.equalTarget)}   Fairness: ${fairnessScore(balances)}/100   max Δ: ${formatEuro(maxDeviation(balances))}   Σ|Δ|: ${formatEuro(sumAbsDeviation(balances))}`,
+    `Pool: ${formatEuro(balances.estatePool)}   Goal per person: ${formatEuro(balances.equalTarget)}   Fairness: ${fairnessScore(balances)}/100   max Δ: ${formatEuro(maxDeviation(balances))}   Σ|Δ|: ${formatEuro(sumAbsDeviation(balances))}`,
     margin,
     y
   );
   y += 18;
 
-  // Endbilanz table
+  // Final balance table
   autoTable(doc, {
     startY: y,
-    head: [['Person', 'Vermögen', 'Zahlungen', 'Korrekturen', 'Total', 'Δ vs Ziel']],
+    head: [['Person', 'Assets', 'Payments', 'Corrections', 'Total', 'Δ vs Goal']],
     body: PEOPLE.map((p) => [
       p.name,
       formatEuro(balances.perPersonAsset[p.id]),
@@ -59,12 +59,12 @@ export function exportScenarioPDF(scenario: Scenario): void {
   // Asset table
   doc.setFontSize(12);
   doc.setTextColor(40);
-  doc.text('Vermögenswerte', margin, y);
+  doc.text('Assets', margin, y);
   y += 10;
   autoTable(doc, {
     startY: y,
     head: [
-      ['Vermögen', 'Wert', ...PEOPLE.flatMap((p) => [p.name + ' %', p.name + ' €'])],
+      ['Asset', 'Total value', ...PEOPLE.flatMap((p) => [p.name + ' %', p.name + ' €'])],
     ],
     body: scenario.assets.map((a) => [
       a.name,
@@ -83,14 +83,14 @@ export function exportScenarioPDF(scenario: Scenario): void {
   // Transfers
   if (scenario.transfers.length > 0) {
     doc.setFontSize(12);
-    doc.text('Direkte Zahlungen', margin, y);
+    doc.text('Direct payments', margin, y);
     y += 10;
     autoTable(doc, {
       startY: y,
-      head: [['Bezeichnung', 'Von', 'An', 'Betrag']],
+      head: [['Description', 'From', 'To', 'Amount']],
       body: scenario.transfers.map((t) => [
         t.name,
-        t.from ? labelOf(t.from) : '— extern —',
+        t.from ? labelOf(t.from) : '— external —',
         labelOf(t.to),
         formatEuro(t.amount),
       ]),
@@ -105,11 +105,11 @@ export function exportScenarioPDF(scenario: Scenario): void {
   const activeCorrections = scenario.corrections.filter((c) => c.active && c.amount !== 0);
   if (activeCorrections.length > 0) {
     doc.setFontSize(12);
-    doc.text('Aktive Korrekturen', margin, y);
+    doc.text('Active corrections', margin, y);
     y += 10;
     autoTable(doc, {
       startY: y,
-      head: [['Kategorie', 'Person', 'Beschreibung', 'Betrag', 'Notiz']],
+      head: [['Category', 'Person', 'Description', 'Amount', 'Note']],
       body: activeCorrections.map((c) => [
         c.category,
         labelOf(c.person),
@@ -128,13 +128,13 @@ export function exportScenarioPDF(scenario: Scenario): void {
   const activeConstraints = scenario.constraints.filter((c) => c.active);
   if (activeConstraints.length > 0) {
     doc.setFontSize(12);
-    doc.text('Wünsche & Bedingungen', margin, y);
+    doc.text('Wishes & constraints', margin, y);
     y += 10;
     autoTable(doc, {
       startY: y,
-      head: [['Art', 'Typ', 'Details', 'Notiz']],
+      head: [['Kind', 'Type', 'Details', 'Note']],
       body: activeConstraints.map((c) => [
-        c.kind === 'hard' ? 'Hart' : 'Weich',
+        c.kind === 'hard' ? 'Hard' : 'Soft',
         c.type,
         constraintDetails(c, scenario),
         c.note,
@@ -149,18 +149,18 @@ export function exportScenarioPDF(scenario: Scenario): void {
   // Notes & assumptions
   if (scenario.notes || scenario.assumptions) {
     doc.setFontSize(12);
-    doc.text('Notizen & Annahmen', margin, y);
+    doc.text('Notes & assumptions', margin, y);
     y += 14;
     doc.setFontSize(10);
     if (scenario.notes) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Notizen:', margin, y);
+      doc.text('Notes:', margin, y);
       doc.setFont('helvetica', 'normal');
       y = drawWrapped(doc, scenario.notes, margin + 60, y, pageWidth - margin * 2 - 60) + 6;
     }
     if (scenario.assumptions) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Annahmen:', margin, y);
+      doc.text('Assumptions:', margin, y);
       doc.setFont('helvetica', 'normal');
       y = drawWrapped(doc, scenario.assumptions, margin + 60, y, pageWidth - margin * 2 - 60) + 6;
     }
@@ -187,12 +187,12 @@ export function exportComparePDF(scenarios: Scenario[]): void {
   let y = margin;
 
   doc.setFontSize(16);
-  doc.text('Erbteilung – Vergleich', margin, y);
+  doc.text('Inheritance — Comparison', margin, y);
   y += 22;
 
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text(new Date().toLocaleDateString('de-CH'), margin, y);
+  doc.text(new Date().toLocaleDateString('en-CH'), margin, y);
   y += 16;
   doc.setTextColor(40);
 
@@ -216,7 +216,7 @@ export function exportComparePDF(scenarios: Scenario[]): void {
       ),
     ]);
   }
-  body.push(['Ziel', ...data.map((d) => formatEuro(d.b.equalTarget))]);
+  body.push(['Goal', ...data.map((d) => formatEuro(d.b.equalTarget))]);
   body.push(['max Δ', ...data.map((d) => formatEuro(maxDeviation(d.b)))]);
   body.push(['Σ |Δ|', ...data.map((d) => formatEuro(sumAbsDeviation(d.b)))]);
   body.push(['Fairness', ...data.map((d) => `${fairnessScore(d.b)}/100`)]);
@@ -236,7 +236,7 @@ export function exportComparePDF(scenarios: Scenario[]): void {
     maxWidth: doc.internal.pageSize.getWidth() - margin * 2,
   });
 
-  doc.save('vergleich.pdf');
+  doc.save('comparison.pdf');
 }
 
 function labelOf(id: string): string {
@@ -244,9 +244,9 @@ function labelOf(id: string): string {
 }
 
 function statusLabel(s: string): string {
-  if (s === 'preferred') return 'Bevorzugt';
+  if (s === 'preferred') return 'Preferred';
   if (s === 'final') return 'Final';
-  return 'Entwurf';
+  return 'Draft';
 }
 
 function slug(s: string): string {
@@ -254,7 +254,7 @@ function slug(s: string): string {
     .normalize('NFKD')
     .replace(/[^\w]+/g, '_')
     .replace(/^_+|_+$/g, '')
-    .slice(0, 60) || 'szenario';
+    .slice(0, 60) || 'scenario';
 }
 
 function constraintDetails(c: Scenario['constraints'][number], sc: Scenario): string {
@@ -263,15 +263,15 @@ function constraintDetails(c: Scenario['constraints'][number], sc: Scenario): st
     case 'minBalance':
       return `${labelOf(c.person)} ≥ ${formatEuro(c.amount)}`;
     case 'minAssetShare':
-      return `${labelOf(c.person)} ≥ ${formatPercent(c.percent)} an "${assetName(c.assetId)}"`;
+      return `${labelOf(c.person)} ≥ ${formatPercent(c.percent)} of "${assetName(c.assetId)}"`;
     case 'fixAssetAllocation':
-      return `"${assetName(c.assetId)}" fest verteilt`;
+      return `"${assetName(c.assetId)}" fixed allocation`;
     case 'preferFullAsset':
-      return `${labelOf(c.person)} bevorzugt voll an "${assetName(c.assetId)}" (Gewicht ${c.weight})`;
+      return `${labelOf(c.person)} prefers full "${assetName(c.assetId)}" (weight ${c.weight})`;
     case 'preferLiquidity':
-      return `${labelOf(c.person)} bevorzugt Cash (Gewicht ${c.weight})`;
+      return `${labelOf(c.person)} prefers cash (weight ${c.weight})`;
     case 'avoidSplitAsset':
-      return `"${assetName(c.assetId)}" möglichst nicht teilen (Gewicht ${c.weight})`;
+      return `Avoid splitting "${assetName(c.assetId)}" (weight ${c.weight})`;
     default:
       return '';
   }

@@ -13,15 +13,15 @@ export function ConstraintsPanel() {
   return (
     <div className="card">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold">Wünsche & Bedingungen</h2>
+        <h2 className="text-lg font-semibold">Wishes & constraints</h2>
         <p className="text-xs text-slate-500">
-          Harte Bedingungen müssen erfüllt sein. Weiche Wünsche fliessen mit Gewichten in den Vorschlag ein.
+          Hard constraints must be satisfied. Soft wishes feed weighted hints into the auto-equalizer.
         </p>
       </div>
 
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">Harte Bedingungen</h3>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">Hard constraints</h3>
       <div className="mb-2 space-y-2">
-        {hard.length === 0 && <p className="text-xs text-slate-500">Noch keine harte Bedingung.</p>}
+        {hard.length === 0 && <p className="text-xs text-slate-500">No hard constraints yet.</p>}
         {hard.map((c) => (
           <ConstraintRow
             key={c.id}
@@ -46,7 +46,7 @@ export function ConstraintsPanel() {
             } as Constraint)
           }
         >
-          + Mindestbetrag
+          + Minimum balance
         </button>
         <button
           className="btn"
@@ -62,13 +62,13 @@ export function ConstraintsPanel() {
             } as Constraint)
           }
         >
-          + Mindestanteil an Vermögen
+          + Minimum asset share
         </button>
       </div>
 
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">Weiche Wünsche</h3>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">Soft wishes</h3>
       <div className="mb-2 space-y-2">
-        {soft.length === 0 && <p className="text-xs text-slate-500">Noch keine Wünsche.</p>}
+        {soft.length === 0 && <p className="text-xs text-slate-500">No wishes yet.</p>}
         {soft.map((c) => (
           <ConstraintRow
             key={c.id}
@@ -94,7 +94,7 @@ export function ConstraintsPanel() {
             } as Constraint)
           }
         >
-          + Volles Vermögen für Person
+          + Full asset for person
         </button>
         <button
           className="btn"
@@ -109,7 +109,7 @@ export function ConstraintsPanel() {
             } as Constraint)
           }
         >
-          + Aufteilung vermeiden
+          + Avoid splitting asset
         </button>
         <button
           className="btn"
@@ -124,7 +124,7 @@ export function ConstraintsPanel() {
             } as Constraint)
           }
         >
-          + Liquidität für Person
+          + Prefer liquidity for person
         </button>
       </div>
     </div>
@@ -151,7 +151,7 @@ function ConstraintRow({
           onChange={(e) => onUpdate((c) => ({ ...c, active: e.target.checked }))}
           className="h-5 w-5 rounded"
         />
-        <span className="pill bg-slate-200 text-slate-700">{constraint.type}</span>
+        <span className="pill bg-slate-200 text-slate-700">{labelForType(constraint.type)}</span>
         <button onClick={onRemove} className="btn-ghost ml-auto text-rose-600 hover:bg-rose-50">
           ×
         </button>
@@ -165,9 +165,7 @@ function ConstraintRow({
               className="field"
               value={constraint.person}
               onChange={(e) =>
-                onUpdate(
-                  (c) => ({ ...c, person: e.target.value as PersonId }) as Constraint
-                )
+                onUpdate((c) => ({ ...c, person: e.target.value as PersonId }) as Constraint)
               }
             >
               {PEOPLE.map((p) => (
@@ -179,14 +177,12 @@ function ConstraintRow({
 
         {needsAsset(constraint.type) && 'assetId' in constraint && (
           <div className="md:col-span-4">
-            <label className="block text-xs text-slate-600">Vermögen</label>
+            <label className="block text-xs text-slate-600">Asset</label>
             <select
               className="field"
               value={constraint.assetId}
               onChange={(e) =>
-                onUpdate(
-                  (c) => ({ ...c, assetId: e.target.value }) as Constraint
-                )
+                onUpdate((c) => ({ ...c, assetId: e.target.value }) as Constraint)
               }
             >
               {assets.map((a) => (
@@ -198,7 +194,7 @@ function ConstraintRow({
 
         {'amount' in constraint && (
           <div className="md:col-span-2">
-            <label className="block text-xs text-slate-600">Betrag (€)</label>
+            <label className="block text-xs text-slate-600">Amount (€)</label>
             <input
               className="field"
               type="number"
@@ -210,7 +206,7 @@ function ConstraintRow({
 
         {'percent' in constraint && (
           <div className="md:col-span-2">
-            <label className="block text-xs text-slate-600">Mindest-%</label>
+            <label className="block text-xs text-slate-600">Min %</label>
             <input
               className="field"
               type="number"
@@ -222,7 +218,7 @@ function ConstraintRow({
 
         {'weight' in constraint && (
           <div className="md:col-span-2">
-            <label className="block text-xs text-slate-600">Gewicht</label>
+            <label className="block text-xs text-slate-600">Weight</label>
             <input
               className="field"
               type="number"
@@ -236,16 +232,28 @@ function ConstraintRow({
       </div>
 
       <div className="mt-2">
-        <label className="block text-xs text-slate-600">Notiz</label>
+        <label className="block text-xs text-slate-600">Note</label>
         <input
           className="field"
           value={constraint.note}
-          placeholder="Warum diese Bedingung?"
+          placeholder="Why this constraint?"
           onChange={(e) => onUpdate((c) => ({ ...c, note: e.target.value }))}
         />
       </div>
     </div>
   );
+}
+
+function labelForType(type: Constraint['type']): string {
+  switch (type) {
+    case 'minBalance': return 'minimum balance';
+    case 'minAssetShare': return 'minimum asset share';
+    case 'fixAssetAllocation': return 'fixed allocation';
+    case 'preferFullAsset': return 'prefer full asset';
+    case 'preferLiquidity': return 'prefer liquidity';
+    case 'avoidSplitAsset': return 'avoid splitting';
+    default: return type;
+  }
 }
 
 function needsPerson(type: Constraint['type']): boolean {

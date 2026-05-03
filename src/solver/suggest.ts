@@ -32,22 +32,22 @@ export function generateSuggestions(scenario: Scenario): Suggestion[] {
   }> = [
     {
       id: 'fair',
-      label: 'Fair zuerst',
-      description: 'Maximiere Gleichheit – Wünsche zählen weniger.',
+      label: 'Fairness first',
+      description: 'Maximise equality — wishes count less.',
       fairnessWeight: 4,
       softWeightMultiplier: 1,
     },
     {
       id: 'balanced',
-      label: 'Ausgewogen',
-      description: 'Gleichheit und Wünsche gleich gewichten.',
+      label: 'Balanced',
+      description: 'Equality and wishes weighted equally.',
       fairnessWeight: 2,
       softWeightMultiplier: 2,
     },
     {
       id: 'preference',
-      label: 'Wünsche zuerst',
-      description: 'Wünsche wichtiger als perfekte Gleichheit.',
+      label: 'Wishes first',
+      description: 'Wishes more important than perfect equality.',
       fairnessWeight: 1,
       softWeightMultiplier: 5,
     },

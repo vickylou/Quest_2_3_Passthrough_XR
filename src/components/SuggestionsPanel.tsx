@@ -45,19 +45,19 @@ export function SuggestionsPanel() {
     <div className="card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold">Vorschläge</h2>
+          <h2 className="text-lg font-semibold">Suggestions</h2>
           <p className="text-xs text-slate-500">
-            Drei Lösungen mit unterschiedlichen Schwerpunkten. Du kannst eine als neues Szenario speichern.
+            Three solutions with different priorities. You can save any of them as a new scenario.
           </p>
         </div>
         <button className="btn-primary" onClick={run} disabled={running}>
-          {running ? 'Berechne…' : 'Vorschläge erzeugen'}
+          {running ? 'Calculating…' : 'Generate suggestions'}
         </button>
       </div>
 
       {suggestions.length === 0 && (
         <p className="text-sm text-slate-500">
-          Klicke "Vorschläge erzeugen", um drei Varianten zu sehen — fair zuerst, ausgewogen, oder Wünsche zuerst.
+          Click "Generate suggestions" to see three variants — fairness first, balanced, or wishes first.
         </p>
       )}
 
@@ -80,7 +80,7 @@ export function SuggestionsPanel() {
               ))}
             </ul>
             <button className="btn w-full" onClick={() => saveAsScenario(s)}>
-              Als Szenario speichern
+              Save as scenario
             </button>
           </div>
         ))}

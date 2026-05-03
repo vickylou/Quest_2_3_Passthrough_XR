@@ -36,8 +36,8 @@ export function CompareView({ onClose }: { onClose: () => void }) {
       <div className="card w-full max-w-5xl">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold">Szenarien vergleichen</h2>
-            <p className="text-xs text-slate-500">Bis zu 4 Szenarien nebeneinander.</p>
+            <h2 className="text-lg font-semibold">Compare scenarios</h2>
+            <p className="text-xs text-slate-500">Up to 4 scenarios side by side.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -45,10 +45,10 @@ export function CompareView({ onClose }: { onClose: () => void }) {
               onClick={() => exportComparePDF(rows.map((r) => all[r.id]))}
               disabled={rows.length === 0}
             >
-              Vergleich als PDF
+              Compare as PDF
             </button>
             <button className="btn" onClick={onClose}>
-              Schliessen
+              Close
             </button>
           </div>
         </div>
@@ -106,7 +106,7 @@ export function CompareView({ onClose }: { onClose: () => void }) {
                 </tr>
               ))}
               <tr>
-                <td className="border-b py-2 pr-3 font-medium">Ziel pro Person</td>
+                <td className="border-b py-2 pr-3 font-medium">Goal per person</td>
                 {rows.map((r) => (
                   <td key={r.id} className="border-b py-2 pr-3 tabular-nums">
                     {formatEuro(r.balances.equalTarget)}

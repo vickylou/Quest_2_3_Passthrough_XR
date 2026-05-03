@@ -1,10 +1,15 @@
 export type PersonId = 'lisa' | 'vicky' | 'jackie' | 'alexa';
 
-export const PEOPLE: { id: PersonId; name: string; color: string }[] = [
-  { id: 'lisa', name: 'Lisa', color: '#7c9ec3' },
-  { id: 'vicky', name: 'Vicky', color: '#c37c9e' },
-  { id: 'jackie', name: 'Jackie', color: '#c39e7c' },
-  { id: 'alexa', name: 'Alexa', color: '#7cc39e' },
+export interface PersonColors {
+  primary: string;
+  accent: string;
+}
+
+export const PEOPLE: { id: PersonId; name: string; colors: PersonColors }[] = [
+  { id: 'lisa', name: 'Lisa', colors: { primary: '#16a34a', accent: '#2563eb' } },
+  { id: 'vicky', name: 'Vicky', colors: { primary: '#eab308', accent: '#f97316' } },
+  { id: 'jackie', name: 'Jackie', colors: { primary: '#dc2626', accent: '#ec4899' } },
+  { id: 'alexa', name: 'Alexa', colors: { primary: '#9333ea', accent: '#7c3aed' } },
 ];
 
 export const PERSON_IDS: PersonId[] = ['lisa', 'vicky', 'jackie', 'alexa'];
@@ -27,7 +32,21 @@ export interface Asset {
   allowedRecipients?: PersonId[];
   /** Soft preference signal: if false, splitting this asset is discouraged. */
   splittable: boolean;
+  /** Selects an inline SVG illustration for the card's right column. */
+  imageKey?: 'house' | 'plot' | 'cash' | 'field';
+  /**
+   * Optional informational breakdown of what makes up `totalValue`. Display-only
+   * — balance math still uses `totalValue`. The remainder
+   * (`totalValue − sum(subItems)`) is shown as a "Base value" line.
+   */
+  subItems?: AssetSubItem[];
   notes?: string;
+}
+
+export interface AssetSubItem {
+  id: string;
+  label: string;
+  amount: number;
 }
 
 export interface Transfer {

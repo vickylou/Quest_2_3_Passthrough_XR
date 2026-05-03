@@ -11,16 +11,18 @@ export function CorrectionList() {
     <div className="card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold">Korrekturen / Sondervorteile</h2>
+          <h2 className="text-lg font-semibold">Corrections / special benefits</h2>
           <p className="text-xs text-slate-500">
-            Optionale historische Vorteile, Hilfen oder Annahmen, die in die Fairness einfliessen. Aktivierte Beträge werden zur Bilanz dazu gerechnet.
+            Optional historical benefits, support or assumptions that may influence fairness.
+            Active amounts are added to that person's balance.
           </p>
         </div>
-        <button onClick={add} className="btn">+ Korrektur</button>
+        <button onClick={add} className="btn">+ Correction</button>
       </div>
 
-      <div className="mb-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-        Korrekturwerte sind optionale Annahmen. Sie helfen bei der Diskussion über Fairness, sollten aber rechtlich/steuerlich geprüft werden.
+      <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Correction values are optional assumptions, not legal facts. Useful for fairness discussions,
+        but verify with a notary or tax adviser.
       </div>
 
       <div className="space-y-2">
@@ -38,7 +40,7 @@ export function CorrectionList() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs text-slate-600">Kategorie</label>
+              <label className="block text-xs text-slate-600">Category</label>
               <input
                 className="field"
                 value={c.category}
@@ -58,7 +60,7 @@ export function CorrectionList() {
               </select>
             </div>
             <div className="md:col-span-3">
-              <label className="block text-xs text-slate-600">Beschreibung</label>
+              <label className="block text-xs text-slate-600">Description</label>
               <input
                 className="field"
                 value={c.description}
@@ -66,7 +68,7 @@ export function CorrectionList() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs text-slate-600">Betrag (€)</label>
+              <label className="block text-xs text-slate-600">Amount (€)</label>
               <input
                 className="field"
                 type="number"
@@ -77,14 +79,14 @@ export function CorrectionList() {
             </div>
             <div className="md:col-span-2 flex items-end justify-end">
               <button onClick={() => remove(c.id)} className="btn-ghost text-rose-600 hover:bg-rose-50">
-                Entfernen
+                Remove
               </button>
             </div>
             <div className="md:col-span-12">
-              <label className="block text-xs text-slate-600">Notiz</label>
+              <label className="block text-xs text-slate-600">Note</label>
               <input
                 className="field"
-                placeholder="Warum wurde dieser Wert gewählt?"
+                placeholder="Why was this value chosen?"
                 value={c.note}
                 onChange={(e) => update(c.id, (x) => ({ ...x, note: e.target.value }))}
               />

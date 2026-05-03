@@ -4,10 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        lisa: '#7c9ec3',
-        vicky: '#c37c9e',
-        jackie: '#c39e7c',
-        alexa: '#7cc39e',
+        lisa: { primary: '#16a34a', accent: '#2563eb' },
+        vicky: { primary: '#eab308', accent: '#f97316' },
+        jackie: { primary: '#dc2626', accent: '#ec4899' },
+        alexa: { primary: '#9333ea', accent: '#7c3aed' },
       },
     },
   },

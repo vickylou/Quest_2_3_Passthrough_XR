@@ -24,7 +24,11 @@ export function defaultAssets(): Asset[] {
       flexible: false,
       allowedRecipients: ['lisa', 'vicky'],
       splittable: true,
-      notes: 'Inkl. ~250k Renovierung. Bestehende Aufteilung Lisa/Vicky.',
+      imageKey: 'house',
+      subItems: [
+        { id: 'helm_renovation', label: 'Renovation costs', amount: 250_000 },
+      ],
+      notes: 'Existing Lisa / Vicky split. Renovation costs broken out below.',
     },
     {
       id: WEBERHAUS_ID,
@@ -35,27 +39,30 @@ export function defaultAssets(): Asset[] {
       flexible: false,
       allowedRecipients: ['jackie', 'alexa'],
       splittable: true,
-      notes: 'Verteilung anpassbar (z. B. 62/38 statt 50/50).',
+      imageKey: 'house',
+      notes: 'Split is adjustable (e.g. 62 / 38 instead of 50 / 50).',
     },
     {
       id: BAUGRUND_1_ID,
-      name: 'Baugrund 1',
+      name: 'Building plot 1',
       totalValue: 750_000,
       allocations: alloc({ vicky: 50, jackie: 50 }),
       locked: false,
       flexible: false,
       splittable: true,
-      notes: 'Geteilter Baugrund Vicky/Jackie.',
+      imageKey: 'plot',
+      notes: 'Shared plot Vicky / Jackie.',
     },
     {
       id: BAUGRUND_2_ID,
-      name: 'Baugrund 2',
+      name: 'Building plot 2',
       totalValue: 750_000,
       allocations: alloc({ alexa: 100 }),
       locked: false,
       flexible: false,
       splittable: false,
-      notes: 'Voller Baugrund für Alexa (sie hat noch kein Haus).',
+      imageKey: 'plot',
+      notes: 'Full plot for Alexa (she does not yet own a house).',
     },
     {
       id: CASH_ID,
@@ -65,17 +72,19 @@ export function defaultAssets(): Asset[] {
       locked: false,
       flexible: true,
       splittable: true,
-      notes: 'Erlös aus verkauftem Baugrund minus Renovierung.',
+      imageKey: 'cash',
+      notes: 'Proceeds from the sold building plot, minus renovation contribution.',
     },
     {
       id: LANDWIRTSCHAFT_ID,
-      name: 'Landwirtschaftlicher Grund',
+      name: 'Agricultural land',
       totalValue: 260_000,
       allocations: alloc({ lisa: 42, vicky: 42, jackie: 16 }),
       locked: false,
       flexible: false,
       splittable: true,
-      notes: '6 500 m² ≈ 40 €/m². Mögliches Zukunftspotential bei Umzonung.',
+      imageKey: 'field',
+      notes: '6 500 m² ≈ 40 €/m². Future upside if rezoned.',
     },
   ];
 }
@@ -84,14 +93,14 @@ export function defaultTransfers(): Transfer[] {
   return [
     {
       id: 'transfer_lisa_vicky',
-      name: 'Ausgleichszahlung Lisa → Vicky',
+      name: 'Equalisation payment Lisa → Vicky',
       from: 'lisa',
       to: 'vicky',
       amount: 150_000,
     },
     {
       id: 'transfer_parents_vicky',
-      name: 'Unterstützung Eltern → Vicky',
+      name: 'Parental support → Vicky',
       from: null,
       to: 'vicky',
       amount: 80_000,
@@ -103,81 +112,81 @@ export function defaultCorrections(): Correction[] {
   return [
     {
       id: 'corr_lisa_rent',
-      category: 'Wohnen',
+      category: 'Housing',
       person: 'lisa',
-      description: 'Reduzierte / freie Miete',
+      description: 'Reduced / free rent',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_lisa_practice',
-      category: 'Wohnen',
+      category: 'Housing',
       person: 'lisa',
-      description: 'Reduzierte Praxis-Miete',
+      description: 'Reduced practice rent',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_lisa_kids',
-      category: 'Familienhilfe',
+      category: 'Family support',
       person: 'lisa',
-      description: 'Unterstützung für Kinder durch Eltern',
+      description: 'Support for children from parents',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_jackie_housing',
-      category: 'Wohnen',
+      category: 'Housing',
       person: 'jackie',
-      description: 'Reduzierte / freie Wohngelegenheit',
+      description: 'Reduced / free housing',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_alexa_support',
-      category: 'Familienhilfe',
+      category: 'Family support',
       person: 'alexa',
-      description: 'Erhaltene Unterstützung von Eltern',
+      description: 'Support received from parents',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_vicky_credit',
-      category: 'Familienhilfe',
+      category: 'Family support',
       person: 'vicky',
-      description: 'Hilfe bei Kreditrückzahlung durch Eltern',
+      description: 'Help with credit repayment from parents',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_vicky_interest',
-      category: 'Zeitwert',
+      category: 'Time value',
       person: 'vicky',
-      description: 'Eingesparte Zinsen durch frühere Unterstützung',
+      description: 'Interest saved through earlier support',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_vicky_divorce',
-      category: 'Notfallhilfe',
+      category: 'Emergency support',
       person: 'vicky',
-      description: 'Scheidungsbedingte Notfall-Unterstützung',
+      description: 'Divorce-related emergency support',
       amount: 0,
       active: false,
       note: '',
     },
     {
       id: 'corr_general',
-      category: 'Sonstiges',
+      category: 'Other',
       person: 'lisa',
-      description: 'Andere Korrektur',
+      description: 'Other correction',
       amount: 0,
       active: false,
       note: '',
@@ -194,7 +203,7 @@ export function defaultConstraints(): Constraint[] {
       assetId: BAUGRUND_2_ID,
       person: 'alexa',
       weight: 5,
-      note: 'Alexa soll möglichst einen ganzen Baugrund bekommen (sie hat noch kein Haus).',
+      note: 'Alexa should ideally receive a full building plot (she has no house yet).',
       active: true,
     },
     {
@@ -203,7 +212,7 @@ export function defaultConstraints(): Constraint[] {
       type: 'avoidSplitAsset',
       assetId: BAUGRUND_1_ID,
       weight: 2,
-      note: 'Baugrund 1 möglichst nicht weiter aufteilen.',
+      note: 'Avoid splitting building plot 1 further if possible.',
       active: false,
     },
     {
@@ -212,7 +221,7 @@ export function defaultConstraints(): Constraint[] {
       type: 'avoidSplitAsset',
       assetId: BAUGRUND_2_ID,
       weight: 3,
-      note: 'Baugrund 2 möglichst nicht aufteilen.',
+      note: 'Avoid splitting building plot 2 if possible.',
       active: true,
     },
   ];
@@ -243,20 +252,21 @@ function makeBaseScenario(
 export function v0Scenario(): Scenario {
   return makeBaseScenario(
     'v0',
-    'V0 – Ausgangspunkt',
-    'Aktueller Stand der Diskussion. Alle Werte editierbar.'
+    'V0 – Starting point',
+    'Current state of the discussion. All values editable.'
   );
 }
 
 /**
- * V1 base: Lisa & Vicky bekommen je 50 % Landwirtschaft, Jackie 0.
- * Cash wird flexibel — der Solver verteilt es so, dass alle nahe am Zielwert sind.
+ * V1 base: Lisa & Vicky each get 50 % of the agricultural land, Jackie 0.
+ * Cash becomes flexible — the solver distributes it so everyone is close
+ * to the equal goal.
  */
 export function v1Scenario(): Scenario {
   return makeBaseScenario(
     'v1',
-    'V1 – Lisa & Vicky teilen Landwirtschaft',
-    'Lisa und Vicky bekommen je 50 % der Landwirtschaft. Cash wird automatisch verteilt um Jackie zu kompensieren.',
+    'V1 – Lisa & Vicky share agricultural land',
+    'Lisa and Vicky each get 50 % of the agricultural land. Cash is auto-distributed to compensate Jackie.',
     (assets) =>
       assets.map((a) => {
         if (a.id === LANDWIRTSCHAFT_ID) {
@@ -281,14 +291,14 @@ export function v1Scenario(): Scenario {
 }
 
 /**
- * V2 base: Lisa, Vicky, Jackie teilen Landwirtschaft zu je ~33.33 % (Alexa 0).
- * Cash wird flexibel auf Lisa, Vicky, Jackie verteilt (Alexa 0).
+ * V2 base: Lisa, Vicky, Jackie share agricultural land roughly 33.33 % each
+ * (Alexa 0). Cash flexible across Lisa, Vicky, Jackie (Alexa 0).
  */
 export function v2Scenario(): Scenario {
   return makeBaseScenario(
     'v2',
-    'V2 – Drei Schwestern teilen Landwirtschaft',
-    'Lisa, Vicky, Jackie bekommen ungefähr gleich viel Landwirtschaft. Cash wird auf die drei aufgeteilt.',
+    'V2 – Three sisters share agricultural land',
+    'Lisa, Vicky and Jackie each get roughly the same share of the agricultural land. Cash is split among the three.',
     (assets) =>
       assets.map((a) => {
         if (a.id === LANDWIRTSCHAFT_ID) {

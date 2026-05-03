@@ -71,7 +71,7 @@ export function equalize(scenario: Scenario, options: EqualizeOptions = {}): Equ
 
   if (flexibleAssets.length === 0) {
     messages.push(
-      'Keine flexiblen Vermögenswerte. Markiere mindestens einen Vermögenswert als "flexibel", damit der Ausgleich rechnen kann.'
+      'No flexible assets. Mark at least one asset as "flexible" in the Auto-equalize setup so the solver has something to redistribute.'
     );
     return { ok: false, feasible: true, achievedT: NaN, scenario, messages };
   }
@@ -239,13 +239,13 @@ export function equalize(scenario: Scenario, options: EqualizeOptions = {}): Equ
   try {
     result = solver.Solve(model);
   } catch (err) {
-    messages.push(`Solver-Fehler: ${(err as Error).message}`);
+    messages.push(`Solver error: ${(err as Error).message}`);
     return { ok: false, feasible: false, achievedT: NaN, scenario, messages };
   }
 
   if (!result.feasible) {
     messages.push(
-      'Die harten Bedingungen sind nicht alle gleichzeitig erfüllbar. Bitte einzelne Bedingungen deaktivieren oder anpassen.'
+      'The hard constraints cannot all be satisfied at once. Disable or adjust some of them and try again.'
     );
     return { ok: false, feasible: false, achievedT: NaN, scenario, messages };
   }
@@ -274,10 +274,10 @@ export function equalize(scenario: Scenario, options: EqualizeOptions = {}): Equ
 
   if (tVal > 1) {
     messages.push(
-      `Bestmögliche Lösung: max. Abweichung € ${Math.round(tVal).toLocaleString('de-CH')}. Vollständiger Ausgleich war mit den aktuellen flexiblen Werten nicht möglich.`
+      `Best feasible solution: max deviation € ${Math.round(tVal).toLocaleString('en-CH')}. Perfect equalisation was not possible with the current flexible assets.`
     );
   } else {
-    messages.push('Ausgleich erfolgreich. Alle vier Personen liegen sehr nahe am Zielwert.');
+    messages.push('Equalisation succeeded. All four people are very close to the goal.');
   }
 
   return {

@@ -29,7 +29,7 @@ export function ScenarioBar() {
     <div className="card">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-medium text-slate-600">Aktives Szenario</label>
+          <label className="block text-xs font-medium text-slate-600">Active scenario</label>
           <div className="flex items-center gap-2">
             <select
               className="field"
@@ -54,7 +54,7 @@ export function ScenarioBar() {
                 setRenaming(true);
               }}
             >
-              Umbenennen
+              Rename
             </button>
           ) : (
             <span className="flex items-center gap-2">
@@ -74,31 +74,31 @@ export function ScenarioBar() {
                 OK
               </button>
               <button className="btn" onClick={() => setRenaming(false)}>
-                Abbrechen
+                Cancel
               </button>
             </span>
           )}
           <button className="btn" onClick={duplicateActive}>
-            Duplizieren
+            Duplicate
           </button>
           <button
             className="btn"
             onClick={() => {
-              if (confirm(`Szenario "${active.name}" wirklich löschen?`)) deleteScenario(activeId);
+              if (confirm(`Delete scenario "${active.name}"?`)) deleteScenario(activeId);
             }}
           >
-            Löschen
+            Delete
           </button>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-600">Status:</span>
-        <StatusButton current={active.status} value="draft" label="Entwurf" onClick={setStatus} />
+        <StatusButton current={active.status} value="draft" label="Draft" onClick={setStatus} />
         <StatusButton
           current={active.status}
           value="preferred"
-          label="Bevorzugt"
+          label="Preferred"
           onClick={setStatus}
         />
         <StatusButton current={active.status} value="final" label="Final" onClick={setStatus} />
@@ -109,7 +109,7 @@ export function ScenarioBar() {
           className="btn"
           onClick={() => exportScenarioPDF(active)}
         >
-          PDF exportieren
+          Export PDF
         </button>
         <button
           className="btn"
@@ -120,13 +120,13 @@ export function ScenarioBar() {
               scenarios: all,
               mode: 'manual',
             });
-            downloadAsFile('erbteilung.json', txt);
+            downloadAsFile('inheritance.json', txt);
           }}
         >
-          JSON exportieren
+          Export JSON
         </button>
         <button className="btn" onClick={() => fileInputRef.current?.click()}>
-          JSON importieren
+          Import JSON
         </button>
         <input
           ref={fileInputRef}
@@ -141,7 +141,7 @@ export function ScenarioBar() {
               const next = importJSON(txt);
               replaceAll(next);
             } catch (err) {
-              alert(`Import fehlgeschlagen: ${(err as Error).message}`);
+              alert(`Import failed: ${(err as Error).message}`);
             } finally {
               if (fileInputRef.current) fileInputRef.current.value = '';
             }
@@ -150,19 +150,19 @@ export function ScenarioBar() {
         <button
           className="btn"
           onClick={() => {
-            if (confirm('Auf Beispiel-Daten zurücksetzen? Aktuelle Szenarien gehen verloren.'))
+            if (confirm('Reset to example data? Current scenarios will be lost.'))
               resetToDefault();
           }}
         >
-          Beispiel laden
+          Load example
         </button>
         <button
           className="btn-ghost text-rose-600"
           onClick={() => {
-            if (confirm('Wirklich alles löschen?')) clearAll();
+            if (confirm('Delete everything?')) clearAll();
           }}
         >
-          Alles leeren
+          Clear all
         </button>
       </div>
     </div>
