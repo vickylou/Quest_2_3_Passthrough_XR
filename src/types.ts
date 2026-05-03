@@ -94,6 +94,18 @@ export interface Correction {
 
 export type ScenarioStatus = 'draft' | 'preferred' | 'final';
 
+/**
+ * Who can see this scenario in the picker on a given device.
+ *   - 'private': only the author (default)
+ *   - 'public':  any viewer who has the scenario on their device
+ *   - 'shared':  visible to the people listed in `sharedWith`
+ *
+ * Cross-device propagation happens via the Share-link button — the visibility
+ * label informs which prompt the share button uses, the link itself is what
+ * actually moves the scenario to another phone.
+ */
+export type Visibility = 'private' | 'public' | 'shared';
+
 export interface Scenario {
   id: string;
   name: string;
@@ -105,6 +117,10 @@ export interface Scenario {
    * under its author.
    */
   meeting?: string;
+  /** Who can see this scenario on devices that have it. Default: 'private'. */
+  visibility: Visibility;
+  /** When `visibility === 'shared'`, the explicit list of recipients. */
+  sharedWith?: Author[];
   notes: string;
   assumptions: string;
   createdAt: number;
@@ -119,6 +135,13 @@ export interface PersistedState {
   schemaVersion: number;
   activeId: string;
   scenarios: Record<string, Scenario>;
+  /**
+   * Who is currently using the app on this device. Used to filter the
+   * scenario picker (only show scenarios authored by this person, public
+   * ones, and ones shared with this person). Defaults to 'lisa' on the
+   * very first load; the user picks their own identity in the header.
+   */
+  viewerId: Author;
   /** Last time any change was persisted (epoch ms). Used for the "saved" indicator. */
   lastSavedAt?: number;
 }

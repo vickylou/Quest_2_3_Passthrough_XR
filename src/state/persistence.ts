@@ -1,9 +1,9 @@
 import { PersistedState, Scenario } from '../types';
 import { v0Scenario, v1Scenario, v2Scenario } from '../data/seed';
 
-const STORAGE_KEY = 'inheritance.v2';
-const LEGACY_KEY = 'inheritance.v1';
-const SCHEMA_VERSION = 2;
+const STORAGE_KEY = 'inheritance.v3';
+const LEGACY_KEYS = ['inheritance.v2', 'inheritance.v1'];
+const SCHEMA_VERSION = 3;
 
 export function loadState(): PersistedState {
   try {
@@ -11,22 +11,26 @@ export function loadState(): PersistedState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as PersistedState;
-      if (parsed.schemaVersion === SCHEMA_VERSION && parsed.scenarios && Object.keys(parsed.scenarios).length > 0) {
+      if (
+        parsed.schemaVersion === SCHEMA_VERSION &&
+        parsed.scenarios &&
+        Object.keys(parsed.scenarios).length > 0
+      ) {
         if (!parsed.activeId || !parsed.scenarios[parsed.activeId]) {
           parsed.activeId = Object.keys(parsed.scenarios)[0];
         }
+        if (!parsed.viewerId) parsed.viewerId = 'lisa';
         return parsed;
       }
     }
-    // Legacy schema: try to lift the user's old scenarios into the new shape
-    // so they don't lose their work when we ship a new layout.
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
+    // Legacy: lift older schemas into the new shape so users don't lose work.
+    for (const key of LEGACY_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (!legacy) continue;
       try {
-        const legacyParsed = JSON.parse(legacy);
-        return migrateLegacy(legacyParsed);
+        return migrateLegacy(JSON.parse(legacy));
       } catch {
-        /* fall through to defaults */
+        /* try next key */
       }
     }
     return defaultState();
@@ -57,12 +61,13 @@ export function defaultState(): PersistedState {
     schemaVersion: SCHEMA_VERSION,
     activeId: v0.id,
     scenarios,
+    viewerId: 'lisa',
     lastSavedAt: Date.now(),
   };
 }
 
 /**
- * Best-effort migration from the v1 schema (which had `mode`, constraints,
+ * Best-effort migration from any older schema (v1 had `mode` + constraints +
  * verbose Correction with category/description, and Transfer.from = null
  * meaning external) to the v2 shape.
  */
@@ -74,8 +79,12 @@ function migrateLegacy(legacy: unknown): PersistedState {
     const sc: Scenario = {
       id: String(raw.id ?? id),
       name: String(raw.name ?? 'Untitled'),
-      author: 'mum',
-      meeting: undefined,
+      author: (raw.author as Scenario['author']) ?? 'mum',
+      meeting: typeof raw.meeting === 'string' ? raw.meeting : undefined,
+      visibility: (raw.visibility as Scenario['visibility']) ?? 'private',
+      sharedWith: Array.isArray(raw.sharedWith)
+        ? (raw.sharedWith as Scenario['sharedWith'])
+        : undefined,
       notes: String(raw.notes ?? ''),
       assumptions: String(raw.assumptions ?? ''),
       createdAt: Number(raw.createdAt ?? Date.now()),
@@ -98,10 +107,15 @@ function migrateLegacy(legacy: unknown): PersistedState {
     typeof legacy.activeId === 'string' && out[legacy.activeId]
       ? legacy.activeId
       : Object.keys(out)[0];
+  const viewerId =
+    typeof legacy.viewerId === 'string' && (legacy.viewerId as string)
+      ? (legacy.viewerId as Scenario['author'])
+      : 'lisa';
   return {
     schemaVersion: SCHEMA_VERSION,
     activeId,
     scenarios: out,
+    viewerId,
     lastSavedAt: Date.now(),
   };
 }

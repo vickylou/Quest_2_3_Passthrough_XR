@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../state/store';
 import { exportScenarioPDF } from '../lib/pdf';
-import { Author, AUTHORS, Scenario, ScenarioStatus } from '../types';
+import { Author, AUTHORS, Scenario, ScenarioStatus, Visibility } from '../types';
+import { buildShareUrl } from '../lib/share';
 
 export function ScenarioBar() {
   const all = useStore((s) => s.scenarios);
   const activeId = useStore((s) => s.activeId);
+  const viewerId = useStore((s) => s.viewerId);
   const lastSavedAt = useStore((s) => s.lastSavedAt);
   const setActive = useStore((s) => s.setActive);
   const renameActive = useStore((s) => s.renameActive);
   const setAuthor = useStore((s) => s.setAuthor);
   const setMeeting = useStore((s) => s.setMeeting);
+  const setVisibility = useStore((s) => s.setVisibility);
+  const setSharedWith = useStore((s) => s.setSharedWith);
   const duplicateActive = useStore((s) => s.duplicateActive);
   const deleteScenario = useStore((s) => s.deleteScenario);
   const setStatus = useStore((s) => s.setStatus);
@@ -20,9 +24,20 @@ export function ScenarioBar() {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [shareInfo, setShareInfo] = useState<{ url: string; copied: boolean } | null>(null);
 
   const active = all[activeId];
-  const groups = useMemo(() => groupScenarios(all), [all]);
+  const visibleScenarios = useMemo(() => filterVisible(all, viewerId), [all, viewerId]);
+  const groups = useMemo(() => groupScenarios(visibleScenarios), [visibleScenarios]);
+
+  // If the current active scenario isn't visible to this viewer, switch to one that is.
+  useEffect(() => {
+    if (!active) return;
+    if (!isVisibleToViewer(active, viewerId)) {
+      const first = visibleScenarios[0];
+      if (first) setActive(first.id);
+    }
+  }, [active, viewerId, visibleScenarios, setActive]);
 
   if (!active) return null;
 
@@ -42,7 +57,7 @@ export function ScenarioBar() {
               <optgroup key={group.label} label={group.label}>
                 {group.scenarios.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} {statusBadge(s.status)}
+                    {s.name} {visibilityBadge(s, viewerId)} {statusBadge(s.status)}
                   </option>
                 ))}
               </optgroup>
@@ -81,7 +96,52 @@ export function ScenarioBar() {
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* Visibility row */}
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="flex flex-col">
+          <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            Visibility
+          </label>
+          <select
+            className="field"
+            value={active.visibility}
+            onChange={(e) => setVisibility(e.target.value as Visibility)}
+            title="Who can see this scenario"
+          >
+            <option value="private">🔒 Private (just me)</option>
+            <option value="public">🌐 Public (everyone)</option>
+            <option value="shared">👥 Shared with…</option>
+          </select>
+        </div>
+
+        {active.visibility === 'shared' && (
+          <div className="flex flex-col">
+            <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
+              Shared with
+            </label>
+            <SharedWithChips
+              author={active.author}
+              selected={active.sharedWith ?? []}
+              onChange={setSharedWith}
+            />
+          </div>
+        )}
+
+        {active.visibility !== 'private' && (
+          <button
+            className="btn-primary"
+            onClick={() => {
+              const url = buildShareUrl(active);
+              setShareInfo({ url, copied: false });
+            }}
+            title="Generate a link you can paste into WhatsApp / iMessage / email"
+          >
+            Share link…
+          </button>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {!renaming ? (
           <button
             className="btn"
@@ -162,17 +222,37 @@ export function ScenarioBar() {
           }}
         />
       )}
+
+      {shareInfo && (
+        <ShareLinkModal
+          url={shareInfo.url}
+          copied={shareInfo.copied}
+          onCopied={() => setShareInfo({ ...shareInfo, copied: true })}
+          onClose={() => setShareInfo(null)}
+        />
+      )}
     </section>
   );
 }
 
-function groupScenarios(all: Record<string, Scenario>): Array<{
+function isVisibleToViewer(s: Scenario, viewer: Author): boolean {
+  if (s.author === viewer) return true;
+  if (s.visibility === 'public') return true;
+  if (s.visibility === 'shared' && s.sharedWith?.includes(viewer)) return true;
+  return false;
+}
+
+function filterVisible(all: Record<string, Scenario>, viewer: Author): Scenario[] {
+  return Object.values(all).filter((s) => isVisibleToViewer(s, viewer));
+}
+
+function groupScenarios(scenarios: Scenario[]): Array<{
   label: string;
   scenarios: Scenario[];
 }> {
   const byMeeting = new Map<string, Scenario[]>();
   const byAuthor = new Map<Author, Scenario[]>();
-  for (const s of Object.values(all)) {
+  for (const s of scenarios) {
     if (s.meeting && s.meeting.trim().length > 0) {
       const key = s.meeting.trim();
       const arr = byMeeting.get(key) ?? [];
@@ -205,6 +285,11 @@ function statusBadge(s: ScenarioStatus): string {
   if (s === 'preferred') return '★';
   if (s === 'final') return '✓';
   return '';
+}
+
+function visibilityBadge(s: Scenario, viewer: Author): string {
+  if (s.author !== viewer) return s.visibility === 'public' ? '🌐' : '👥';
+  return s.visibility === 'public' ? '🌐' : s.visibility === 'shared' ? '👥' : '🔒';
 }
 
 function StatusButton({
@@ -249,7 +334,11 @@ function SavedBadge({ lastSavedAt }: { lastSavedAt?: number }) {
   if (diffSec < 5) label = 'Saved just now';
   else if (diffSec < 60) label = `Saved ${diffSec}s ago`;
   else if (diffSec < 3600) label = `Saved ${Math.floor(diffSec / 60)} min ago`;
-  else label = `Saved ${new Date(lastSavedAt).toLocaleTimeString('en-CH', { hour: '2-digit', minute: '2-digit' })}`;
+  else
+    label = `Saved ${new Date(lastSavedAt).toLocaleTimeString('en-CH', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`;
   return (
     <span
       className="pill bg-emerald-50 text-emerald-700"
@@ -257,6 +346,89 @@ function SavedBadge({ lastSavedAt }: { lastSavedAt?: number }) {
     >
       ✓ {label}
     </span>
+  );
+}
+
+function SharedWithChips({
+  author,
+  selected,
+  onChange,
+}: {
+  author: Author;
+  selected: Author[];
+  onChange: (next: Author[]) => void;
+}) {
+  // The author themselves always sees their own scenario; don't list them.
+  const candidates = AUTHORS.filter((a) => a.id !== author);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {candidates.map((a) => {
+        const on = selected.includes(a.id);
+        return (
+          <button
+            key={a.id}
+            className={`pill ${
+              on ? 'bg-slate-700 text-white' : 'border border-slate-300 bg-white text-slate-600'
+            }`}
+            onClick={() => {
+              const next = on ? selected.filter((x) => x !== a.id) : [...selected, a.id];
+              onChange(next);
+            }}
+          >
+            {a.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShareLinkModal({
+  url,
+  copied,
+  onCopied,
+  onClose,
+}: {
+  url: string;
+  copied: boolean;
+  onCopied: () => void;
+  onClose: () => void;
+}) {
+  function copy() {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard
+        .writeText(url)
+        .then(onCopied)
+        .catch(() => {
+          /* fallback below */
+        });
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-3">
+      <div className="card w-full max-w-lg">
+        <h3 className="mb-2 text-lg font-semibold">Share this scenario</h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Copy this link and send it to whoever you want to share with (WhatsApp, iMessage, email).
+          When they open it on their phone, the app will offer to import the scenario into their
+          own list.
+        </p>
+        <textarea
+          readOnly
+          className="field min-h-[88px] text-xs"
+          value={url}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <div className="mt-3 flex justify-end gap-2">
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+          <button className="btn-primary" onClick={copy}>
+            {copied ? '✓ Copied' : 'Copy link'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -282,8 +454,8 @@ function SaveAsModal({
       <div className="card w-full max-w-md">
         <h3 className="mb-2 text-lg font-semibold">Save as new scenario</h3>
         <p className="mb-3 text-xs text-slate-500">
-          A copy of the active scenario will be saved with the values below. Each person can keep
-          several drafts side by side and group them under a meeting.
+          A copy of the active scenario will be saved with the values below. New scenarios start as
+          Private — set them to Public or Shared once you want to share them.
         </p>
         <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
         <input

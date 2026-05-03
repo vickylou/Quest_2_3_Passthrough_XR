@@ -110,21 +110,27 @@ function makeBaseScenario(
   name: string,
   author: Author,
   notes: string,
-  meeting?: string,
-  overrides: (assets: Asset[]) => Asset[] = (a) => a
+  options: {
+    meeting?: string;
+    visibility?: Scenario['visibility'];
+    sharedWith?: Scenario['sharedWith'];
+    overrides?: (assets: Asset[]) => Asset[];
+  } = {}
 ): Scenario {
   const now = Date.now();
   return {
     id,
     name,
     author,
-    meeting,
+    meeting: options.meeting,
+    visibility: options.visibility ?? 'private',
+    sharedWith: options.sharedWith,
     notes,
     assumptions: '',
     createdAt: now,
     updatedAt: now,
     status: 'draft',
-    assets: overrides(defaultAssets()),
+    assets: (options.overrides ?? ((a) => a))(defaultAssets()),
     transfers: defaultTransfers(),
     corrections: defaultCorrections(),
   };
@@ -136,7 +142,7 @@ export function v0Scenario(): Scenario {
     'V0 – Starting point',
     'mum',
     'Current state of the discussion. All values editable.',
-    'Family meeting'
+    { meeting: 'Family meeting', visibility: 'public' }
   );
 }
 
@@ -146,18 +152,19 @@ export function v1Scenario(): Scenario {
     "Vicky's draft – land 50/50 with Lisa",
     'vicky',
     'Lisa and Vicky each get half of the agricultural land. Cash partly compensates the others.',
-    undefined,
-    (assets) =>
-      assets.map((a) => {
-        if (a.id === LANDWIRTSCHAFT_ID) {
-          return { ...a, allocations: { lisa: 50, vicky: 50, jackie: 0, alexa: 0 } };
-        }
-        if (a.id === CASH_ID) {
-          // Hand-tuned cash split that brings Lisa up most, Vicky a bit, leaves Alexa above target.
-          return { ...a, allocations: { lisa: 73, vicky: 27, jackie: 0, alexa: 0 } };
-        }
-        return a;
-      })
+    {
+      visibility: 'private',
+      overrides: (assets) =>
+        assets.map((a) => {
+          if (a.id === LANDWIRTSCHAFT_ID) {
+            return { ...a, allocations: { lisa: 50, vicky: 50, jackie: 0, alexa: 0 } };
+          }
+          if (a.id === CASH_ID) {
+            return { ...a, allocations: { lisa: 73, vicky: 27, jackie: 0, alexa: 0 } };
+          }
+          return a;
+        }),
+    }
   );
 }
 
@@ -167,16 +174,18 @@ export function v2Scenario(): Scenario {
     "Jackie's draft – three sisters share land",
     'jackie',
     'Lisa, Vicky and Jackie each get roughly the same share of the agricultural land. Cash split among the three.',
-    undefined,
-    (assets) =>
-      assets.map((a) => {
-        if (a.id === LANDWIRTSCHAFT_ID) {
-          return { ...a, allocations: { lisa: 33.33, vicky: 33.33, jackie: 33.34, alexa: 0 } };
-        }
-        if (a.id === CASH_ID) {
-          return { ...a, allocations: { lisa: 73, vicky: 27, jackie: 0, alexa: 0 } };
-        }
-        return a;
-      })
+    {
+      visibility: 'private',
+      overrides: (assets) =>
+        assets.map((a) => {
+          if (a.id === LANDWIRTSCHAFT_ID) {
+            return { ...a, allocations: { lisa: 33.33, vicky: 33.33, jackie: 33.34, alexa: 0 } };
+          }
+          if (a.id === CASH_ID) {
+            return { ...a, allocations: { lisa: 73, vicky: 27, jackie: 0, alexa: 0 } };
+          }
+          return a;
+        }),
+    }
   );
 }

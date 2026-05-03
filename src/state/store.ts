@@ -7,6 +7,7 @@ import {
   Scenario,
   ScenarioStatus,
   Transfer,
+  Visibility,
 } from '../types';
 import { defaultState, loadState, saveState } from './persistence';
 import { uid } from '../lib/format';
@@ -22,6 +23,10 @@ interface StoreState extends PersistedState {
   renameActive: (name: string) => void;
   setAuthor: (author: Author) => void;
   setMeeting: (meeting: string | undefined) => void;
+  setViewer: (viewer: Author) => void;
+  setVisibility: (visibility: Visibility) => void;
+  setSharedWith: (people: Author[]) => void;
+  importScenario: (scenario: Scenario) => string;
   deleteScenario: (id: string) => void;
   setStatus: (status: ScenarioStatus) => void;
   setNotes: (notes: string) => void;
@@ -85,6 +90,10 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...overrides,
         id,
         status: 'draft',
+        // New "Save as" copies always start private so people can experiment
+        // before sharing. They can flip to Public / Shared from the bar.
+        visibility: overrides?.visibility ?? 'private',
+        sharedWith: overrides?.sharedWith,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -154,6 +163,60 @@ export const useStore = create<StoreState>()((set, get) => ({
         },
       });
     }),
+
+  setViewer: (viewer) => set((s) => persistAndReturn({ ...s, viewerId: viewer })),
+
+  setVisibility: (visibility) =>
+    set((s) => {
+      const cur = s.scenarios[s.activeId];
+      if (!cur) return s;
+      return persistAndReturn({
+        ...s,
+        scenarios: {
+          ...s.scenarios,
+          [s.activeId]: { ...cur, visibility, updatedAt: Date.now() },
+        },
+      });
+    }),
+
+  setSharedWith: (people) =>
+    set((s) => {
+      const cur = s.scenarios[s.activeId];
+      if (!cur) return s;
+      return persistAndReturn({
+        ...s,
+        scenarios: {
+          ...s.scenarios,
+          [s.activeId]: { ...cur, sharedWith: people, updatedAt: Date.now() },
+        },
+      });
+    }),
+
+  importScenario: (scenario) => {
+    // Use a fresh id so two imports from the same source don't collide with
+    // an existing scenario. The original scenario keeps its name + author.
+    const id = uid('imp');
+    let savedId = id;
+    set((s) => {
+      const sc: Scenario = {
+        ...scenario,
+        id,
+        createdAt: scenario.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+        // If the recipient is already in the sharedWith list, keep the
+        // original sharing intent. Otherwise the imported scenario is
+        // visible only to the recipient (effectively private once received).
+        visibility: scenario.visibility ?? 'private',
+      };
+      savedId = id;
+      return persistAndReturn({
+        ...s,
+        scenarios: { ...s.scenarios, [id]: sc },
+        activeId: id,
+      });
+    });
+    return savedId;
+  },
 
   deleteScenario: (id) =>
     set((s) => {
