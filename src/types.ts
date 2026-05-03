@@ -17,9 +17,11 @@ export const PERSON_IDS: PersonId[] = ['lisa', 'vicky', 'jackie', 'alexa'];
 /**
  * Anyone who can author a scenario or send a transfer. The four sisters
  * actually receive inheritance; "mum" and "dad" only act as senders of
- * transfers and as scenario authors.
+ * transfers and as scenario authors. "test" is a temporary identity used
+ * to verify cross-device sync from a second phone — safe to remove once
+ * everyone is on board.
  */
-export type Author = PersonId | 'mum' | 'dad';
+export type Author = PersonId | 'mum' | 'dad' | 'test';
 
 export const AUTHORS: { id: Author; name: string }[] = [
   { id: 'lisa', name: 'Lisa' },
@@ -28,6 +30,7 @@ export const AUTHORS: { id: Author; name: string }[] = [
   { id: 'alexa', name: 'Alexa' },
   { id: 'mum', name: 'Mum' },
   { id: 'dad', name: 'Dad' },
+  { id: 'test', name: 'Test phone' },
 ];
 
 /** "From" of a transfer. `null` is legacy (was "external") and now treated as Mum & Dad combined. */
