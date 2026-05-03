@@ -1,15 +1,20 @@
+import { createClient, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { Author, Scenario } from '../types';
 
 /**
- * Cloud sync — minimal Supabase REST client (no SDK) for a small family
- * collaboration use case. The "anon" Supabase key is treated as a shared
- * family secret; everyone with the URL + key can read and write scenarios.
+ * Cloud sync — Supabase JS SDK with magic-link auth + Row Level Security.
  *
- * Setup steps the user runs once on supabase.com:
- *   1. Create a free project.
- *   2. SQL editor: run SCHEMA_SQL below.
- *   3. Settings → API → copy Project URL + anon public key.
- *   4. Paste them into the Cloud Setup modal in the app.
+ * Privacy model:
+ *   - Each family member signs in with their own email (magic link).
+ *   - On first sign-in they pick a role (lisa / vicky / jackie / alexa / mum / dad / test)
+ *     which is stored in the `identities` table.
+ *   - All scenarios reads/writes go through Supabase. RLS policies enforce
+ *     server-side that a signed-in user can only see scenarios where they are
+ *     the author, or visibility = 'public', or visibility = 'shared' AND their
+ *     role is in shared_with. The Viewing-as picker is gone — you can't
+ *     impersonate a family member by clicking around anymore.
+ *
+ * Setup the user runs once in their Supabase project's SQL editor: AUTH_SCHEMA_SQL.
  */
 
 const CONFIG_KEY = 'inheritance.cloud';
@@ -17,15 +22,13 @@ const CONFIG_KEY = 'inheritance.cloud';
 export interface CloudConfig {
   url: string;
   anonKey: string;
-  /**
-   * Logical "family" identifier. Lets one Supabase project host more than one
-   * family circle if ever needed. Defaults to 'default'.
-   */
+  /** Lets one Supabase project host multiple family circles. Defaults to 'default'. */
   familyId: string;
 }
 
-export const SCHEMA_SQL = `-- Inheritance Calculator: scenarios sync table.
--- Run once in your Supabase project's SQL editor.
+export const AUTH_SCHEMA_SQL = `-- Inheritance Calculator: cloud schema (run once in Supabase SQL editor).
+
+-- 1. Scenarios table (idempotent — safe to re-run).
 create table if not exists public.scenarios (
   id text primary key,
   family_id text not null default 'default',
@@ -41,11 +44,63 @@ create table if not exists public.scenarios (
   deleted boolean not null default false
 );
 alter table public.scenarios enable row level security;
+
+-- 2. Identities table: maps each Supabase auth user → family role.
+create table if not exists public.identities (
+  auth_uid uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('lisa','vicky','jackie','alexa','mum','dad','test')),
+  family_id text not null default 'default',
+  created_at timestamptz not null default now()
+);
+alter table public.identities enable row level security;
+
+-- 3. Helper: returns the signed-in user's family role (null if not signed in / no identity yet).
+create or replace function public.viewer_role() returns text
+  language sql stable security definer set search_path = public, auth as $$
+  select role from public.identities where auth_uid = auth.uid();
+$$;
+
+-- 4. Replace the old permissive policy (if any) with auth-based policies.
 drop policy if exists "anon all" on public.scenarios;
-create policy "anon all" on public.scenarios for all using (true) with check (true);
+drop policy if exists "scenarios read visible" on public.scenarios;
+drop policy if exists "scenarios insert own" on public.scenarios;
+drop policy if exists "scenarios update own" on public.scenarios;
+drop policy if exists "scenarios delete own" on public.scenarios;
+
+create policy "scenarios read visible" on public.scenarios for select
+  using (
+    auth.uid() is not null
+    and deleted = false
+    and (
+      author = public.viewer_role()
+      or visibility = 'public'
+      or (visibility = 'shared' and public.viewer_role() = any(shared_with))
+    )
+  );
+
+create policy "scenarios insert own" on public.scenarios for insert
+  with check (auth.uid() is not null and author = public.viewer_role());
+
+create policy "scenarios update own" on public.scenarios for update
+  using (auth.uid() is not null and author = public.viewer_role())
+  with check (author = public.viewer_role());
+
+create policy "scenarios delete own" on public.scenarios for delete
+  using (auth.uid() is not null and author = public.viewer_role());
+
+-- 5. Identities policies: each user can read/manage only their own row.
+drop policy if exists "users manage own identity" on public.identities;
+create policy "users manage own identity" on public.identities
+  for all using (auth.uid() = auth_uid) with check (auth.uid() = auth_uid);
+
+-- 6. Indexes (idempotent).
 create index if not exists idx_scenarios_vis on public.scenarios (visibility, deleted);
 create index if not exists idx_scenarios_shared on public.scenarios using gin (shared_with);
 `;
+
+// ---------------------------------------------------------------------------
+// Config storage (URL + anon key — same as before, kept in localStorage)
+// ---------------------------------------------------------------------------
 
 export function loadCloudConfig(): CloudConfig | null {
   try {
@@ -77,6 +132,125 @@ export function saveCloudConfig(config: CloudConfig | null): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SDK client (singleton scoped to current config)
+// ---------------------------------------------------------------------------
+
+let cachedClient: SupabaseClient | null = null;
+let cachedConfigSig = '';
+
+function configSig(c: CloudConfig | null): string {
+  return c ? `${c.url}|${c.anonKey}|${c.familyId}` : '';
+}
+
+/** Returns the Supabase client for the configured project, or null if unconfigured. */
+export function getClient(): SupabaseClient | null {
+  const cfg = loadCloudConfig();
+  const sig = configSig(cfg);
+  if (!cfg) {
+    cachedClient = null;
+    cachedConfigSig = '';
+    return null;
+  }
+  if (cachedClient && sig === cachedConfigSig) return cachedClient;
+  cachedClient = createClient(cfg.url, cfg.anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+  cachedConfigSig = sig;
+  return cachedClient;
+}
+
+/** Test connection without auth — confirms URL + anon key reach the API. */
+export async function testConnection(
+  config: CloudConfig
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const tmp = createClient(config.url, config.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    // GET against scenarios — RLS may return zero rows for an anon caller; that's still
+    // a valid 200 response that proves the URL and key are correct.
+    const { error } = await tmp.from('scenarios').select('id').limit(1);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+
+export async function getSession(): Promise<Session | null> {
+  const c = getClient();
+  if (!c) return null;
+  const { data } = await c.auth.getSession();
+  return data.session ?? null;
+}
+
+export function onAuthStateChange(handler: (session: Session | null) => void): () => void {
+  const c = getClient();
+  if (!c) return () => {};
+  const sub = c.auth.onAuthStateChange((_event, session) => handler(session));
+  return () => sub.data.subscription.unsubscribe();
+}
+
+export async function signInWithEmail(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const c = getClient();
+  if (!c) return { ok: false, error: 'Cloud not configured.' };
+  const redirectTo =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : undefined;
+  const { error } = await c.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo },
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function signOut(): Promise<void> {
+  const c = getClient();
+  if (!c) return;
+  await c.auth.signOut();
+}
+
+// ---------------------------------------------------------------------------
+// Identities (which family role this auth user maps to)
+// ---------------------------------------------------------------------------
+
+export async function loadIdentity(user: User): Promise<Author | null> {
+  const c = getClient();
+  if (!c) return null;
+  const { data, error } = await c
+    .from('identities')
+    .select('role')
+    .eq('auth_uid', user.id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.role as Author;
+}
+
+export async function saveIdentity(user: User, role: Author, familyId: string): Promise<void> {
+  const c = getClient();
+  if (!c) throw new Error('Cloud not configured.');
+  const { error } = await c.from('identities').upsert(
+    { auth_uid: user.id, role, family_id: familyId },
+    { onConflict: 'auth_uid' }
+  );
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Scenarios (server-side filtering via RLS — no need to filter client-side)
+// ---------------------------------------------------------------------------
+
 interface CloudRow {
   id: string;
   family_id: string;
@@ -92,55 +266,25 @@ interface CloudRow {
   deleted: boolean;
 }
 
-function headers(config: CloudConfig, extra?: Record<string, string>): Record<string, string> {
-  return {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${config.anonKey}`,
-    'Content-Type': 'application/json',
-    ...extra,
-  };
+export async function pullScenarios(familyId: string): Promise<Scenario[]> {
+  const c = getClient();
+  if (!c) return [];
+  const { data, error } = await c
+    .from('scenarios')
+    .select('*')
+    .eq('family_id', familyId)
+    .eq('deleted', false);
+  if (error) throw new Error(error.message);
+  return (data as CloudRow[]).map(rowToScenario);
 }
 
-/**
- * Fetches every scenario the viewer is allowed to see — public ones, ones
- * authored by the viewer (so their cloud copies stay in sync), and ones
- * shared explicitly with the viewer.
- */
-export async function pullVisibleScenarios(
-  config: CloudConfig,
-  viewer: Author
-): Promise<Scenario[]> {
-  // PostgREST "or" syntax. shared_with is a Postgres array; we filter in JS to
-  // keep the URL simple.
-  const url = `${config.url}/rest/v1/scenarios?select=*&family_id=eq.${encodeURIComponent(config.familyId)}&deleted=eq.false`;
-  const res = await fetch(url, { headers: headers(config) });
-  if (!res.ok) {
-    throw new Error(`Pull failed: ${res.status} ${await res.text().catch(() => '')}`);
-  }
-  const rows = (await res.json()) as CloudRow[];
-  const visible = rows.filter((r) => {
-    if (r.author === viewer) return true;
-    if (r.visibility === 'public') return true;
-    if (r.visibility === 'shared' && Array.isArray(r.shared_with) && r.shared_with.includes(viewer))
-      return true;
-    return false;
-  });
-  return visible.map(rowToScenario);
-}
-
-/**
- * Upserts a scenario into the cloud. Private scenarios are never pushed; if
- * you flip visibility from public/shared to private, call `cloudDelete`
- * separately to remove it.
- */
-export async function pushScenario(
-  config: CloudConfig,
-  scenario: Scenario
-): Promise<void> {
+export async function pushScenario(scenario: Scenario, familyId: string): Promise<void> {
   if (scenario.visibility === 'private') return;
+  const c = getClient();
+  if (!c) return;
   const row: Partial<CloudRow> = {
     id: scenario.id,
-    family_id: config.familyId,
+    family_id: familyId,
     author: scenario.author,
     name: scenario.name,
     meeting: scenario.meeting ?? null,
@@ -152,50 +296,22 @@ export async function pushScenario(
     created_at: new Date(scenario.createdAt).toISOString(),
     deleted: false,
   };
-  const url = `${config.url}/rest/v1/scenarios?on_conflict=id`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: headers(config, {
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    }),
-    body: JSON.stringify(row),
-  });
-  if (!res.ok) {
-    throw new Error(`Push failed: ${res.status} ${await res.text().catch(() => '')}`);
-  }
+  const { error } = await c.from('scenarios').upsert(row, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
 }
 
-/** Soft-deletes a scenario by id (sets `deleted = true`). */
-export async function cloudDelete(config: CloudConfig, scenarioId: string): Promise<void> {
-  const url = `${config.url}/rest/v1/scenarios?id=eq.${encodeURIComponent(scenarioId)}&family_id=eq.${encodeURIComponent(config.familyId)}`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: headers(config, { Prefer: 'return=minimal' }),
-    body: JSON.stringify({ deleted: true, updated_at: new Date().toISOString() }),
-  });
-  if (!res.ok) {
-    throw new Error(`Delete failed: ${res.status} ${await res.text().catch(() => '')}`);
-  }
-}
-
-/** Quick health check used by the setup modal. */
-export async function testConnection(config: CloudConfig): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const url = `${config.url}/rest/v1/scenarios?select=id&limit=1`;
-    const res = await fetch(url, { headers: headers(config) });
-    if (!res.ok) {
-      return { ok: false, error: `${res.status}: ${await res.text().catch(() => '')}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: (err as Error).message };
-  }
+export async function cloudDelete(scenarioId: string, familyId: string): Promise<void> {
+  const c = getClient();
+  if (!c) return;
+  const { error } = await c
+    .from('scenarios')
+    .update({ deleted: true, updated_at: new Date().toISOString() })
+    .eq('id', scenarioId)
+    .eq('family_id', familyId);
+  if (error) throw new Error(error.message);
 }
 
 function rowToScenario(row: CloudRow): Scenario {
-  // Trust the embedded payload (which already matches our Scenario shape) and
-  // overlay the row-level fields so we never disagree with the materialised
-  // columns.
   const sc = row.payload;
   return {
     ...sc,

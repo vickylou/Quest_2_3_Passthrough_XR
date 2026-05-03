@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { isCloudConfigured, subscribeSyncStatus, syncPull, SyncStatus } from '../state/sync';
+import { onAuthStateChange } from '../lib/cloud';
 import { CloudSetup } from './CloudSetup';
 
 export function SyncIndicator() {
   const [status, setStatus] = useState<SyncStatus>({ kind: 'idle' });
   const [showSetup, setShowSetup] = useState(false);
+  const [authed, setAuthed] = useState(false);
   const viewerId = useStore((s) => s.viewerId);
   const scenarios = useStore((s) => s.scenarios);
   const replaceAll = useStore((s) => s.replaceAll);
@@ -15,16 +17,24 @@ export function SyncIndicator() {
 
   useEffect(() => subscribeSyncStatus(setStatus), []);
 
-  // On first mount + whenever the viewer changes, pull any visible scenarios
-  // that were authored on other devices.
+  // Track auth state — pulls only make sense when signed in (RLS rejects otherwise).
   useEffect(() => {
-    if (!configured) return;
+    if (!configured) {
+      setAuthed(false);
+      return;
+    }
+    return onAuthStateChange((s) => setAuthed(!!s));
+  }, [configured]);
+
+  // Pull when we become signed in or when the viewer's role changes.
+  useEffect(() => {
+    if (!configured || !authed) return;
     void runPull();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerId, configured]);
+  }, [authed, viewerId, configured]);
 
   async function runPull() {
-    const { scenarios: merged, pulled } = await syncPull(viewerId, scenarios);
+    const { scenarios: merged, pulled } = await syncPull(scenarios);
     if (pulled > 0) {
       replaceAll({
         schemaVersion: 3,

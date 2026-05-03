@@ -6,7 +6,7 @@ import { CorrectionList } from './components/CorrectionList';
 import { NotesPanel } from './components/NotesPanel';
 import { CompareView } from './components/CompareView';
 import { StickyBalanceBar } from './components/StickyBalanceBar';
-import { ViewerPicker } from './components/ViewerPicker';
+import { AuthStatus } from './components/AuthStatus';
 import { SyncIndicator } from './components/SyncIndicator';
 import { useStore } from './state/store';
 import { clearImportFromUrl, readImportFromUrl } from './lib/share';
@@ -40,7 +40,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ViewerPicker />
+            <AuthStatus />
             <SyncIndicator />
             <button className="btn" onClick={() => setShowCompare(true)}>
               Compare

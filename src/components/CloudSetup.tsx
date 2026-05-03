@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CloudConfig, loadCloudConfig, saveCloudConfig, SCHEMA_SQL, testConnection } from '../lib/cloud';
+import { AUTH_SCHEMA_SQL as SCHEMA_SQL, CloudConfig, loadCloudConfig, saveCloudConfig, testConnection } from '../lib/cloud';
 
 export function CloudSetup({ onClose }: { onClose: () => void }) {
   const initial = loadCloudConfig();
@@ -56,9 +56,9 @@ export function CloudSetup({ onClose }: { onClose: () => void }) {
           <button className="btn-ghost px-2 py-0.5" onClick={onClose}>×</button>
         </div>
         <p className="mb-3 text-xs text-slate-500">
-          One person in the family creates a free Supabase project and shares the URL + anon key
-          with the others. Once everyone pastes the same two values into their phones, scenarios
-          marked Public or Shared sync automatically across all devices.
+          One person creates a free Supabase project and shares the URL + anon key with the family.
+          Each person then signs in with their own email (magic link), picks their family role
+          once, and the database enforces who can see what server-side — no impersonation possible.
         </p>
 
         <ol className="mb-4 list-decimal space-y-2 pl-5 text-xs text-slate-700">
@@ -80,7 +80,8 @@ export function CloudSetup({ onClose }: { onClose: () => void }) {
             (left sidebar).
           </li>
           <li>
-            Paste the SQL below into a new query and click <strong>Run</strong>:
+            Paste the SQL below into a new query and click <strong>Run</strong>. (Safe to run on an
+            existing project too — the script is idempotent and upgrades the v1 schema in place.)
             <div className="my-2 rounded-md border border-slate-200 bg-slate-50 p-2">
               <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[10px] text-slate-700">
                 {SCHEMA_SQL}
@@ -91,13 +92,19 @@ export function CloudSetup({ onClose }: { onClose: () => void }) {
             </div>
           </li>
           <li>
-            Open <strong>Settings → API</strong>. Copy <strong>Project URL</strong> and{' '}
+            Open <strong>Authentication → Providers</strong> in the left sidebar. Make sure the{' '}
+            <strong>Email</strong> provider is on (it's on by default; "Confirm email" enabled is
+            fine — magic links work either way).
+          </li>
+          <li>
+            Open <strong>Project Settings → API</strong>. Copy <strong>Project URL</strong> and the{' '}
             <strong>anon / public</strong> key, paste them below.
           </li>
           <li>Click <strong>Test connection</strong>, then <strong>Save</strong>.</li>
           <li>
-            Send the URL + anon key (e.g. on WhatsApp) to the rest of the family so they can paste
-            the same values on their phones.
+            Send the URL + anon key to the family. They paste the same two values on their phones,
+            then each person taps <strong>Sign in</strong> in the top-right and enters their own
+            email to receive a sign-in link.
           </li>
         </ol>
 

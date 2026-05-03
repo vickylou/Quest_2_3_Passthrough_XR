@@ -1,9 +1,8 @@
-import { Author, Scenario } from '../types';
+import { Scenario } from '../types';
 import {
   cloudDelete,
-  CloudConfig,
   loadCloudConfig,
-  pullVisibleScenarios,
+  pullScenarios,
   pushScenario,
 } from '../lib/cloud';
 
@@ -13,7 +12,7 @@ export type SyncStatus =
   | { kind: 'error'; message: string }
   | { kind: 'success'; pulled: number; pushedAt: number };
 
-let listeners = new Set<(status: SyncStatus) => void>();
+const listeners = new Set<(status: SyncStatus) => void>();
 let current: SyncStatus = { kind: 'idle' };
 
 export function subscribeSyncStatus(fn: (s: SyncStatus) => void): () => void {
@@ -37,16 +36,15 @@ export function isCloudConfigured(): boolean {
   return loadCloudConfig() !== null;
 }
 
-/** Pulls everyone-else's visible scenarios and merges them into local state. */
+/** Pulls everything visible to the signed-in user (server-side RLS-filtered). */
 export async function syncPull(
-  viewer: Author,
   localScenarios: Record<string, Scenario>
 ): Promise<{ scenarios: Record<string, Scenario>; pulled: number }> {
   const config = loadCloudConfig();
   if (!config) return { scenarios: localScenarios, pulled: 0 };
   setStatus({ kind: 'syncing', message: 'Pulling scenarios…' });
   try {
-    const remote = await pullVisibleScenarios(config, viewer);
+    const remote = await pullScenarios(config.familyId);
     const merged = mergeRemote(localScenarios, remote);
     setStatus({ kind: 'success', pulled: remote.length, pushedAt: Date.now() });
     return { scenarios: merged, pulled: remote.length };
@@ -70,11 +68,11 @@ export async function syncPushOne(
   try {
     if (scenario.visibility === 'private') {
       if (previousVisibility && previousVisibility !== 'private') {
-        await cloudDelete(config, scenario.id);
+        await cloudDelete(scenario.id, config.familyId);
       }
       return;
     }
-    await pushScenario(config, scenario);
+    await pushScenario(scenario, config.familyId);
     setStatus({ kind: 'success', pulled: 0, pushedAt: Date.now() });
   } catch (err) {
     setStatus({ kind: 'error', message: (err as Error).message });
@@ -86,16 +84,13 @@ export async function syncDelete(scenarioId: string): Promise<void> {
   const config = loadCloudConfig();
   if (!config) return;
   try {
-    await cloudDelete(config, scenarioId);
+    await cloudDelete(scenarioId, config.familyId);
   } catch (err) {
     setStatus({ kind: 'error', message: (err as Error).message });
   }
 }
 
-/**
- * Last-write-wins merge: remote rows replace local rows when their
- * `updatedAt` is newer. Local rows that don't exist remotely are kept.
- */
+/** Last-write-wins merge keyed on updatedAt. */
 function mergeRemote(
   local: Record<string, Scenario>,
   remote: Scenario[]
@@ -103,17 +98,11 @@ function mergeRemote(
   const out: Record<string, Scenario> = { ...local };
   for (const r of remote) {
     const existing = out[r.id];
-    if (!existing) {
-      out[r.id] = r;
-      continue;
-    }
-    if (r.updatedAt > existing.updatedAt) {
+    if (!existing || r.updatedAt > existing.updatedAt) {
       out[r.id] = r;
     }
   }
   return out;
 }
 
-/** Expose the schema SQL constant for the setup modal. */
-export { SCHEMA_SQL, testConnection } from '../lib/cloud';
-export type { CloudConfig };
+export { AUTH_SCHEMA_SQL, testConnection } from '../lib/cloud';
