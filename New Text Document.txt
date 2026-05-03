@@ -1,0 +1,613 @@
+
+Okay, kannst du es noch ein bisschen verschieben, dass ich und Lisa circa gleich viel vom Landwirtschaft bekommen? Und dafür den Cash noch ein bisschen ändern? Und eine zweite Variante, dass wir circa gleich viel Landwirtschaft bekommen, alle drei Schwestern, und den Cash auf alle drei aufteilen, dass es so funktioniert. Perfekt — das ist genau der fehlende Teil, der den Rechner von „reinem Mathe-Tool“ zu einem echten Entscheidungs-Tool für Familien macht.
+Ich erweitere deine Zusammenfassung so, dass Claude versteht:
+Präferenzen / Wünsche der Eltern müssen berücksichtigt werden
+der Rechner soll nicht nur rechnen, sondern auch Vorschläge generieren
+und ihr wollt Szenarien vergleichen und „festhalten“
+🔹 Ergänzung: Family Preferences & Constraints
+Add the following section:
+🔹 Family Preferences & Constraints (Important)
+The distribution is not purely mathematical.
+There are family preferences and constraints that must influence the outcome.
+Examples:
+One sister should receive a full building plot because she does not yet own a home
+Another sister may prefer liquidity (cash) instead of land
+Some assets should ideally not be split (e.g. building plots for practical reasons)
+Some distributions should avoid too many co-owners
+These preferences should be modeled as:
+Soft Constraints (preferences)
+“Alexa should ideally receive one full building plot”
+“Avoid splitting building plots if possible”
+“Minimize number of co-owners per asset”
+Hard Constraints (must happen)
+“Vicky must receive at least 50% of one building plot”
+“Lisa must receive at least X in cash”
+“This asset cannot be reallocated”
+🔹 What the Tool Should Do With Preferences
+The tool should not just calculate results, but also:
+1. Suggest distributions
+Given:
+current values
+constraints
+preferences
+The system should suggest:
+“Here is a distribution that satisfies most constraints and is close to equal.”
+2. Show trade-offs
+For each suggestion:
+fairness score (how close to equal)
+constraint satisfaction
+warnings (e.g. “this creates 3 co-owners on one plot”)
+🔹 Scenario Exploration & Versioning
+The tool must allow:
+Scenario management
+Create multiple scenarios
+Name them (e.g. “V1 – Alexa gets full plot”)
+Duplicate scenarios
+Compare scenarios side-by-side
+Scenario comparison view
+Scenario
+Lisa
+Vicky
+Jackie
+Alexa
+Fairness
+V1
+...
+...
+...
+...
++ / -
+V2
+...
+...
+...
+...
++ / -
+Scenario notes & explanations
+Each scenario should allow:
+Notes field
+Explanation of assumptions
+Why this version was created
+“Agreement / Finalization” Feature
+Users should be able to:
+mark a scenario as “preferred”
+mark as “agreed version”
+optionally:
+export summary (PDF)
+include all values and assumptions
+include notes and explanations
+🔹 Design Philosophy (Extended)
+The tool should:
+combine math + human preferences
+support negotiation, not just calculation
+make trade-offs visible
+help reach consensus, not just equality
+🔹 Optional Instruction for Claude
+Add this to your prompt:
+Plain text
+Extend the system to support preference-based suggestions and scenario management.
+
+Add:
+- preference inputs (soft and hard constraints)
+- a suggestion engine that proposes distributions based on current data
+- a scoring system (fairness vs constraints)
+- scenario saving, naming, duplicating
+- scenario comparison table
+- notes per scenario
+- ability to mark a scenario as "preferred" or "final"
+- export to PDF including all assumptions and results
+
+The system should not enforce a solution, but help users explore and converge on one.🔹 Context: Inheritance Distribution Tool
+We are building a tool to simulate and balance an inheritance distribution between four sisters:
+Lisa
+Vicky
+Jackie
+Alexa
+The goal is:
+To explore different ways of distributing the inheritance and understand how close each scenario is to a fair (equal) outcome.
+🔹 Real Situation (Important)
+The inheritance consists of:
+Houses
+Helmhaus (approx. 1.32M, already partially distributed between Lisa and Vicky)
+Weberhaus (approx. 1.35M after renovations, currently between Jackie and Alexa but still adjustable)
+Building plots
+3 building plots (~750k each)
+1 plot will be sold
+~250k goes into renovating Helmhaus
+remaining cash (~275k) will be distributed
+2 plots remain to be distributed
+Land
+6,500 m² agricultural land (~40 €/m² ≈ 260k total)
+Has potential future value (possible rezoning into building land)
+🔹 Additional Factors
+There are also:
+Transfers
+Direct payments between people (e.g. buyouts)
+Historical support / advantages
+Examples:
+reduced or free housing
+financial support from parents
+support for children
+use of property (e.g. practice space)
+indirect advantages (e.g. saved interest)
+These are not exact and should be modeled as optional adjustments.
+🔹 Core Challenges
+Some assets are not easily divisible (building plots)
+Some are partially divisible (houses)
+Some have uncertain future value (agricultural land)
+There are existing imbalances from past arrangements
+Some solutions are mathematically fair but not practical
+Family preferences influence what is acceptable
+🔹 What the Tool Should Enable
+1. Distribution modeling
+Define how each asset is split across the four people.
+2. Total value calculation
+For each person:
+sum of asset shares
+plus/minus transfers
+plus optional correction values
+3. Equalization
+calculate total estate value
+compute equal target per person
+show difference from target
+4. Scenario exploration
+try different distributions
+adjust values and percentages
+compare different scenarios
+🔹 Preferences & Constraints
+The system should allow expressing preferences such as:
+One person should receive a full building plot (e.g. no house yet)
+Avoid splitting certain assets if possible
+Some allocations are fixed or already agreed
+Some people prefer liquidity, others long-term assets
+These should influence the outcome but not strictly determine it.
+🔹 Design Principle
+The tool should not decide what is fair.
+It should make trade-offs and consequences visible.
+🔹 Goal
+Help users:
+understand complex inheritance structures
+explore realistic distribution options
+balance fairness, practicality, and preferences
+
+I'll start by exploring the codebase to understand what exists for the inheritance distribution tool.
+
+
+Ran 2 commands
+The repo is empty locally. Let me check the remote GitHub repo for any existing files.
+
+
+Used 3 tools
+Both local repo and GitHub repo are completely empty (no commits, no files). The user is asking me to "shift" scenarios, but there's no existing tool to shift from. I need to clarify before planning. Let me load the tools I'll need.
+
+Used ToolSearch
+The repo is empty so I need to understand a few critical things before planning. Let me ask the user.
+
+Asked
+Starting point
+The repository is currently empty — there's no existing inheritance tool to 'shift' scenarios in. Which approach do you want?
+
+Build an inheritance equalization simulator.
+
+The app has four people: Lisa, Vicky, Jackie, Alexa.
+
+The app should not rely only on starting balances. Instead, every value should be modeled as either:
+1. Asset
+2. Adjustment
+
+Assets:
+- name
+- total value
+- allocation percentage per person
+- lock/unlock allocation toggle
+- flexible toggle: can be used for automatic equalization
+
+Adjustments:
+- name
+- fixed euro amount per person
+- example: Lisa pays Vicky 150000 = Lisa -150000, Vicky +150000
+
+The calculator should support two modes:
+
+Mode A: Manual simulation
+- user edits every asset value and allocation percentage
+- app calculates euro allocation, total per person, equal target, and difference from target
+- warns if an asset allocation does not sum to 100%
+
+Mode B: Auto-equalization
+- user marks some assets as fixed/locked
+- user marks some assets as flexible
+- app calculates how the flexible assets must be distributed to bring all people as close as possible to the equal target
+- if equalization is impossible because flexible assets are too small or allocation would require negative percentages, show a warning
+- show required euro amount and percentage per flexible asset/person
+
+Initial assets:
+- Helmhaus: 1320000
+- Weberhaus: 1350000
+- Baugrund 1: 750000
+- Baugrund 2: 750000
+- Cash: 275000
+- Landwirtschaftlicher Grund: 260000
+
+Initial adjustments:
+- Lisa payment to Vicky: Lisa -150000, Vicky +150000
+- Parent help to Vicky: Vicky +80000
+
+Initial example allocation:
+- Helmhaus: Lisa 72%, Vicky 28%
+- Weberhaus: Jackie 62%, Alexa 38%
+- Baugrund 1: Vicky 50%, Jackie 50%
+- Baugrund 2: Alexa 100%
+- Cash: Lisa 61.64%, Vicky 38.36%
+- Landwirtschaft: Lisa 42%, Vicky 42%, Jackie 16%
+
+Show:
+- asset allocation table
+- adjustment table
+- final balance table
+- target equal value per person
+- difference from target
+- scenario save/load in local storage
+- reset example button
+- clear all button
+
+Use React and Tailwind.
+Make the UI simple, clear, and beginner-friendly.Extend the inheritance equalization simulator with a flexible correction and special-benefit system.
+
+The app has four people:
+Lisa, Vicky, Jackie, Alexa.
+
+The calculator should have three main sections:
+
+1. Assets
+Each asset has:
+- name
+- total value
+- allocation percentage per person
+- calculated euro value per person
+- lock/flexible toggle for auto-equalization
+
+2. Transfers / Direct Payments
+Each transfer has:
+- name
+- from person
+- to person
+- amount
+Example:
+- Lisa pays Vicky 150000
+This should subtract 150000 from Lisa and add 150000 to Vicky.
+
+3. Corrections / Special Benefits
+This is a flexible list of historical benefits, help, or correction values.
+Each correction has:
+- category
+- person
+- description
+- amount
+- active checkbox
+- note field
+
+Examples to include by default with amount 0:
+- Lisa: reduced rent / housing support
+- Lisa: reduced practice rent
+- Lisa: support for children by parents
+- Jackie: free or reduced housing
+- Alexa: support received from parents
+- Vicky: parent help with credit payments
+- Vicky: interest saved because support came earlier
+- Vicky: divorce-related emergency support
+- General: other correction
+
+These correction values should be included in the person's total if active.
+
+The final balance per person should be calculated as:
+
+final balance =
+sum of asset allocations
++ incoming transfers
+- outgoing transfers
++ active correction benefits
+
+The app should show a final summary table:
+- asset total
+- transfer total
+- correction total
+- final balance
+- equal target
+- difference from target
+
+The user should be able to:
+- add correction rows
+- edit correction categories and descriptions
+- set values to zero
+- deactivate correction rows without deleting them
+- add notes explaining why a value was included
+- save/load scenarios in local storage
+- duplicate a scenario
+- reset to default example
+
+Important:
+The app should make it clear that correction values are assumptions, not legal facts.
+Use a small note:
+"Correction values are optional assumptions. They help model fairness discussions but should be checked legally/tax-wise."
+
+Use React and Tailwind.
+Make the UI simple, calm, and clear. These are two examples of how you could build it, but I want you to think about it and build it towards the goals I said to you before. 
+
+What technology stack should the tool be built in?
+
+It doesn't matter what you think works best, but it should be a tool that I can use and that everybody can use from their phones and make it, and also together during our discussion. 
+
+For the 'shift' you want, which baseline distribution should I start from?
+
+Use spec values as baseline V0
+
+Got it — full app, accessible from phones, React + Tailwind matches the spec and can be hosted on GitHub Pages so everyone can open it via a URL. Let me launch a Plan agent to validate the auto-equalization algorithm and cross-check the architecture, then write the final plan.
+
+Ran agent
+Opus 4.7
+Validate auto-equalization design
+I have a strong technical picture. Let me write the plan.
+
+Created
+okay-kannst-du-es-elegant-yeti.md
++176
+-0
+Proposed plan
+
+/update-config
+
+Select any text to leave a comment for Claude
+UI restructure: nested cards, sticky balances, English, sister colors
+Context
+The first version of the Erbteilungs-Rechner shipped with all controls flat
+inside each asset card (Locked / Flexibel / Teilbar pills, a "Name" input
+field, percentages without much hierarchy) and a BalancesPanel that sits
+inline mid-page. Vicky used it on her phone and asked for:
+
+A clearer card structure — name as a header outside the card body,
+percent fields with an obvious unit, the locked / flexible / splittable
+pills hidden from the everyday view, and a side image so cards feel like
+real objects (a house, a plot of land, etc.).
+A persistent always-visible Endbilanz at the top — readable while
+scrolling between cards, showing each sister's total and the equal goal
+in compact 1.18 M € form (2 decimals, € symbol at the end).
+English everywhere (the app currently mixes German labels with the
+sisters' English names).
+Two-colour identity per sister so each sister is unmistakable.
+Renovation costs nested inside the Helmhaus card as a sub-breakdown,
+not a separate concept somewhere else.
+A proportional grey suggestion next to each percent field hinting at
+what the OTHER fields would have to be to keep the sum at 100 % — without
+actually changing anything.
+The goal: fewer surprises, less explaining, and a balance bar that stays in
+view so the family can see consequences while scrolling.
+
+Decisions captured from the Q&A
+Suggestion math: proportional to existing. If Lisa = 72, Vicky = 28,
+and the user types Jackie = 13, the grey suggestion shows
+Lisa ≈ 62.6 / Vicky ≈ 24.4 (72 : 28 ratio kept, sum + 13 = 100).
+Money format on the sticky bar: compact, 2 decimals, € at the end —
+1.18 M €, 345.20 K €. Auto-picks K/M based on magnitude.
+Toggles: hide Locked / Flexibel / Teilbar from the asset card; they
+re-appear inside the Auto-Ausgleich (Auto-equalize) mode panel where they
+matter.
+Sister colours (each gets a 2-colour pair, used as gradient/border):
+Lisa: green #16a34a + blue #2563eb (kept)
+Vicky: yellow #eab308 + orange #f97316 (changed from yellow-pink)
+Jackie: red #dc2626 + pink #ec4899 (warm vivid pair)
+Alexa: purple #9333ea + violet #7c3aed (cool jewel pair)
+Walking around the colour wheel: red+pink → yellow+orange → green+blue
+→ purple+violet — four distinct, equally-spaced pairs.
+What changes — high level
+┌─ App header (kept)                                              │
+├─ Sticky balance bar  ◀ NEW: stays on screen while scrolling     │
+│   Lisa 1.08 M €  Vicky 1.19 M €  Jackie 1.25 M €  Alexa 1.26 M │
+│   Goal 1.18 M € · max Δ 86.75 K €  · Fairness 93/100  [▼ Details] │
+├─ Scenario bar (kept, simplified)                                │
+├─ Mode toggle (kept)                                             │
+├─ Asset cards (restructured)                                     │
+│   Helmhaus   ◀ Title above the card, not inside as "Name"      │
+│   ┌───────────────────────────────┬──────────────┐             │
+│   │ [percent inputs Lisa Vicky..] │ [house image]│             │
+│   │ ▾ Renovation costs (nested)   │              │             │
+│   │ ▾ Notes                        │              │             │
+│   └───────────────────────────────┴──────────────┘             │
+│   Sum: 100 %  ✓                                                 │
+│   ...                                                           │
+└─                                                                │
+Files to modify
+src/types.ts
+Keep Asset.locked, Asset.flexible, Asset.splittable — solver still
+needs them. They just stop appearing in the asset card UI.
+Add Asset.imageKey?: 'house' | 'plot' | 'cash' | 'field' — picks an
+inline SVG illustration for the card's right column.
+Add Asset.subItems?: { id: string; label: string; amount: number }[] —
+optional informational breakdown. For Helmhaus, holds { label: 'Renovation costs', amount: 250000 }. Sum of subItems must not exceed totalValue;
+the remaining portion is shown as "Base value" automatically.
+src/lib/format.ts
+Add formatEuroCompact(value: number): string returning 1.18 M €,
+345.20 K €, 999.99 € (no suffix below 1000), with German-Swiss grouping
+for the integer-only branch. 2 decimals always for K/M.
+Keep existing formatEuro for tables/PDF where we want the full number.
+src/lib/balances.ts
+No math changes. Add a small helper suggestProportional( others: Record<PersonId, number>, target: number ): Record<PersonId, number> used by the asset card to compute the grey
+suggestion (target = 100 minus the just-edited fields' sum).
+src/data/seed.ts
+Translate every user-facing string to English (asset names: "Helmhaus"
+stays as-is — proper noun; "Cash", "Agricultural land", "Building plot 1/2").
+Add imageKey to every seed asset ('house' for Helmhaus/Weberhaus,
+'plot' for the building plots, 'cash' for cash, 'field' for the
+agricultural land).
+Add subItems to Helmhaus: [{ label: 'Renovation costs', amount: 250000 }].
+(totalValue stays 1 320 000; UI shows "Base 1 070 000 + Renovation
+250 000".)
+Translate transfer names, correction descriptions, scenario names/notes.
+V0 / V1 / V2 keep their numeric setups; only labels change.
+src/components/AssetTable.tsx — major rewrite
+Card layout becomes:
+[Asset name as h3 header, click to rename inline]
+┌── card body (rounded, bordered, 2-col on ≥md) ─────────────┐
+│ Left col:                                Right col:        │
+│   Total value (€) input                    [SVG illustration│
+│   Sister percent grid (2×2 on phone,         tinted with    │
+│     1×4 on desktop)                          asset's colour]│
+│     each cell shows:                                        │
+│       • sister name + 2-colour dot                          │
+│       • "%" suffix                                          │
+│       • main editable value                                 │
+│       • greyed "→ N.NN" suggestion when sum ≠ 100 %         │
+│       • computed € value                                    │
+│   ▾ Renovation / breakdown (collapsible, only if subItems) │
+│   ▾ Notes (collapsible)                                     │
+└────────────────────────────────────────────────────────────┘
+Sum: NN.NN %   [warning if ≠ 100]   [Remove asset]
+The Locked / Flexibel / Teilbar pills are removed from this component.
+They move to a new <AutoModePanel> shown only when mode === 'auto'.
+allowedRecipients toggle (the small "erlaubt / aus" pill from before)
+also moves into the AutoModePanel — not an everyday concern.
+Grey suggestion: each percent input renders the suggested value next to
+the field (right-aligned, text-slate-400, italic). Clicking the
+suggestion accepts it (writes it into the input). The suggestion only
+shows when sum ≠ 100 within ± 0.05 %.
+src/components/BalancesPanel.tsx — split into two
+<StickyBalanceBar> (new): sticky at top below the app header.
+Shows 4 sister chips (compact format, 2-colour gradient border using each
+sister's pair) + Goal + Δ + Fairness. A ▼ Details button expands an
+inline panel underneath with the breakdown (asset/transfer/correction
+per person, total estate, sum of |Δ|, etc.) — exactly the content that's
+in the current BalancesPanel.
+<BalancesDetails> (new): the expanded content. Collapsed by default
+on phone, expanded on ≥lg.
+src/components/AutoModePanel.tsx — new
+Visible only when mode === 'auto'. Contains:
+Per-asset row showing the asset name, plus the three toggles (Locked,
+Flexible, Splittable) and the allowed-recipients picker.
+The "Run equalizer" primary button (currently in ModeToggle).
+A short explanation of what each flag means.
+src/components/ModeToggle.tsx
+Keep, but the Run button is removed from here and lives in the
+AutoModePanel.
+src/App.tsx
+New layout order:
+<header>                       ← title
+<StickyBalanceBar />           ← always visible
+<main>
+  <ScenarioBar />
+  <ModeToggle />
+  {mode === 'auto' && <AutoModePanel />}
+  <AssetTable />
+  <TransferList />
+  <CorrectionList />
+  <ConstraintsPanel />
+  {mode === 'suggestions' && <SuggestionsPanel />}
+  <NotesPanel />
+  <BalancesDetails />          ← expanded breakdown
+</main>
+The right-column <aside> is gone — single-column on mobile and desktop,
+since balances are now at the top.
+src/index.css
+Add the four sister gradient utility classes (.bg-lisa-grad,
+.bg-vicky-grad, .bg-jackie-grad, .bg-alexa-grad) and matching ring
+utilities (.ring-lisa-grad etc.) for the percent dots and chips.
+Replace existing .lisa / .vicky / .jackie / .alexa Tailwind colours with
+the new pair-based palette (primary + accent for each sister).
+tailwind.config.js
+Replace colors.lisa / vicky / jackie / alexa with objects:
+lisa:   { 500: '#16a34a', 700: '#2563eb' },   // green + blue
+vicky:  { 500: '#eab308', 700: '#f97316' },   // yellow + orange
+jackie: { 500: '#dc2626', 700: '#ec4899' },   // red + pink
+alexa:  { 500: '#9333ea', 700: '#7c3aed' },   // purple + violet
+PEOPLE colour fields in src/types.ts become { primary, accent } for
+each sister.
+src/components/icons/AssetIllustration.tsx — new
+Tiny inline SVG component switching on imageKey:
+house → simplified blueprint-style house (line art).
+plot → square plot with corner markers.
+cash → stack of bills.
+field → rolling-field landscape.
+All four colourable via a tint prop (defaults to the asset's primary
+sister colour, or slate if shared).
+src/components/CorrectionList.tsx / TransferList.tsx / ConstraintsPanel.tsx / NotesPanel.tsx / ScenarioBar.tsx / CompareView.tsx / SuggestionsPanel.tsx
+Translate all visible strings to English. No structural changes.
+Tables in CompareView already match the same layout; just relabel.
+src/lib/pdf.ts
+Translate the PDF section titles to English ("Final balance", "Assets",
+"Direct payments", "Active corrections", "Wishes & constraints", "Notes
+& assumptions"). Keep the disclaimer translated.
+index.html
+lang="en", title "Inheritance Calculator".
+src/__tests__/balances.test.ts
+Add a test for the new suggestProportional helper to lock its behaviour.
+Existing balance test stays valid (math unchanged).
+New behaviours in detail
+Suggestion math (suggestProportional)
+Input: the current allocations map and the just-edited person's id +
+value. Output: suggested values for the OTHER sisters such that the total
+stays at 100 %, distributed proportionally to their existing values.
+
+suggestProportional(allocations, editedId, editedVal):
+  others = sum(allocations[p] for p in PERSON_IDS if p != editedId)
+  target = 100 - editedVal
+  if others <= 0:
+    # nothing to scale; even-split fallback for the others
+    each = target / 3
+    return { p: each for p != editedId }
+  factor = target / others
+  return { p: allocations[p] * factor for p != editedId }
+The suggestion is ONLY rendered, never auto-applied. Click to accept.
+
+Sticky balance bar
+CSS: position: sticky; top: <header height>; z-index: 20;. On phone the
+bar wraps to two rows of two chips. On ≥md it stays on a single row.
+
+Chip design: each sister's chip uses a thin 2-colour gradient border
+(border: 2px solid transparent; background: linear-gradient(...) border-box;)
+using her colour pair. The compact € value sits inside.
+
+Renovation costs nesting
+Inside the Helmhaus card body, below the percent grid:
+
+▾ Breakdown
+   Base value ............... 1 070 000 €  (auto-derived)
+   Renovation costs .......... 250 000 €   [edit] [×]
+   [+ Add line]
+   ─────────────────────────────────────────
+   Total .................... 1 320 000 €  ← matches asset.totalValue
+The breakdown is INFORMATIONAL — asset.totalValue remains the canonical
+field used for balance math. If the user wants to drive the total from the
+breakdown, they can leave the total field empty and a future iteration can
+auto-fill. For this iteration: total is the source of truth, breakdown is
+a label-only sub-structure. The "Base value" line is shown as
+totalValue − sum(subItems) so users can sanity-check the split.
+
+Verification
+npm run lint (tsc) and npm test (vitest) pass.
+npm run build succeeds with no warnings beyond the existing
+javascript-lp-solver fs/child_process externalization notes.
+npm run dev and verify on phone-width and desktop-width windows:
+Sticky balance bar stays in view while scrolling through assets.
+Asset card headers sit outside the card body and are click-to-rename.
+Locked / Flexible / Splittable pills are NOT visible on cards in
+Manual or Suggestions mode; they ARE visible inside AutoModePanel
+when Mode = Auto.
+Helmhaus card shows the renovation-costs breakdown nested.
+Each sister chip uses her two-colour gradient.
+Typing a value in one percent field (e.g. Jackie 13 with Lisa 72,
+Vicky 28) shows greyed-out → 62.57 next to Lisa and → 24.43 next
+to Vicky.
+npm run build output deployed via the existing GH Actions workflow.
+Open https://vickylou.github.io/Quest_2_3_Passthrough_XR/ and confirm
+the new layout is live.
+PDF export: confirm titles are English and numbers still render.
+Compare view: confirm headers are English.
+Out of scope for this iteration
+Replacing the placeholder SVG illustrations with real photographs.
+Driving asset.totalValue from the subItems breakdown (currently only
+informational).
+Localisation framework (we just translate strings inline; no i18n
+library is added).
+Persistence migration: existing local-storage scenarios still load — the
+added imageKey and subItems fields are optional. Old scenarios will
+show without an illustration and without a breakdown until the user
+hits "Reset to example".
