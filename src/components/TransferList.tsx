@@ -224,8 +224,17 @@ function TransferRow({
   readOnly: boolean;
 }) {
   const isActive = t.active !== false;
+  // Faint tint of the recipient so each row reads as belonging to that
+  // sister at a glance. `1A` ≈ 10 % alpha — light enough that the inputs
+  // stay readable on top of it.
+  const recipient = PEOPLE.find((p) => p.id === t.to);
+  const tintBg = recipient ? `${recipient.colors.primary}1A` : 'white';
+  const tintBorder = recipient ? `${recipient.colors.primary}55` : '#e2e8f0';
   return (
-    <div className="space-y-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+    <div
+      className="space-y-1.5 rounded-md border px-2 py-1.5"
+      style={{ background: tintBg, borderColor: tintBorder }}
+    >
       {/* Description gets its own full-width row so longer notes have room.
           The ▲▼ controls sit at the right edge so they don't compete with
           the inputs in the controls row below. */}
