@@ -14,7 +14,6 @@ export function ScenarioBar() {
   const lastSavedAt = useStore((s) => s.lastSavedAt);
   const setActive = useStore((s) => s.setActive);
   const renameActive = useStore((s) => s.renameActive);
-  const setMeeting = useStore((s) => s.setMeeting);
   const setVisibility = useStore((s) => s.setVisibility);
   const setSharedWith = useStore((s) => s.setSharedWith);
   const duplicateActive = useStore((s) => s.duplicateActive);
@@ -74,14 +73,17 @@ export function ScenarioBar() {
 
   return (
     <section className="card !p-3 md:!p-4">
-      <TabSwitch
-        current={tab}
-        mineCount={mineScenarios.length}
-        othersCount={othersScenarios.length}
-        onSwitch={switchTab}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <TabSwitch
+          current={tab}
+          mineCount={mineScenarios.length}
+          othersCount={othersScenarios.length}
+          onSwitch={switchTab}
+        />
+        <SavedBadge lastSavedAt={lastSavedAt} />
+      </div>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-0 sm:flex-1 sm:min-w-[200px]">
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Active scenario
@@ -97,6 +99,17 @@ export function ScenarioBar() {
         <ScenarioChips scenario={active} tab={tab} />
       </div>
 
+      {/* Status row sits right under the picker — quickest access to mark
+          a scenario Preferred / Final after looking at its numbers. */}
+      {tab === 'mine' && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-medium text-slate-600">Status:</span>
+          <StatusButton current={active.status} value="draft" label="Draft" onClick={setStatus} />
+          <StatusButton current={active.status} value="preferred" label="Preferred" onClick={setStatus} />
+          <StatusButton current={active.status} value="final" label="Final" onClick={setStatus} />
+        </div>
+      )}
+
       {tab === 'mine' ? (
         <MineToolbar
           active={active}
@@ -105,17 +118,14 @@ export function ScenarioBar() {
           setRenaming={setRenaming}
           setRenameValue={setRenameValue}
           renameActive={renameActive}
-          setMeeting={setMeeting}
           setVisibility={setVisibility}
           setSharedWith={setSharedWith}
           duplicateActive={duplicateActive}
           deleteScenario={() => deleteScenario(activeId)}
-          setStatus={setStatus}
           resetToDefault={resetToDefault}
           loadExample={loadExample}
           openSaveModal={() => setShowSaveModal(true)}
           openShareLink={() => setShareInfo({ url: buildShareUrl(active), copied: false })}
-          lastSavedAt={lastSavedAt}
         />
       ) : (
         <OthersToolbar
@@ -338,12 +348,17 @@ function ScenarioPicker({
 }
 
 function ScenarioChips({ scenario, tab }: { scenario: Scenario; tab: Tab }) {
+  // On Mine the visibility dropdown and the Status pill row already show
+  // visibility / status — the chips would be a duplicate. On Others both
+  // are read-only so the chips are the ONLY surface for them.
   return (
     <div className="flex flex-wrap items-center gap-1">
       {tab === 'others' && <AuthorBadge author={scenario.author} />}
       {scenario.meeting && <Chip tone="indigo">📅 {scenario.meeting}</Chip>}
-      <Chip tone={visibilityTone(scenario.visibility)}>{visibilityLabel(scenario.visibility)}</Chip>
-      {scenario.status !== 'draft' && (
+      {tab === 'others' && (
+        <Chip tone={visibilityTone(scenario.visibility)}>{visibilityLabel(scenario.visibility)}</Chip>
+      )}
+      {tab === 'others' && scenario.status !== 'draft' && (
         <Chip tone={scenario.status === 'final' ? 'emerald' : 'amber'}>
           {scenario.status === 'final' ? '✓ Final' : '★ Preferred'}
         </Chip>
@@ -374,17 +389,14 @@ function MineToolbar({
   setRenaming,
   setRenameValue,
   renameActive,
-  setMeeting,
   setVisibility,
   setSharedWith,
   duplicateActive,
   deleteScenario,
-  setStatus,
   resetToDefault,
   loadExample,
   openSaveModal,
   openShareLink,
-  lastSavedAt,
 }: {
   active: Scenario;
   renaming: boolean;
@@ -392,33 +404,18 @@ function MineToolbar({
   setRenaming: (v: boolean) => void;
   setRenameValue: (v: string) => void;
   renameActive: (name: string) => void;
-  setMeeting: (m: string | undefined) => void;
   setVisibility: (v: Visibility) => void;
   setSharedWith: (a: Author[]) => void;
   duplicateActive: () => void;
   deleteScenario: () => void;
-  setStatus: (s: ScenarioStatus) => void;
   resetToDefault: () => void;
   loadExample: () => void;
   openSaveModal: () => void;
   openShareLink: () => void;
-  lastSavedAt?: number;
 }) {
   return (
     <>
       <div className="mt-2 flex flex-wrap items-end gap-1.5">
-        <div className="flex flex-col">
-          <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
-            Meeting (optional)
-          </label>
-          <input
-            className="field py-1 text-sm"
-            placeholder="e.g. Family meeting Dec 15"
-            value={active.meeting ?? ''}
-            onChange={(e) => setMeeting(e.target.value)}
-          />
-        </div>
-
         <div className="flex flex-col">
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Visibility
@@ -535,14 +532,6 @@ function MineToolbar({
         >
           Start fresh
         </button>
-        <SavedBadge lastSavedAt={lastSavedAt} />
-      </div>
-
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] font-medium text-slate-600">Status:</span>
-        <StatusButton current={active.status} value="draft" label="Draft" onClick={setStatus} />
-        <StatusButton current={active.status} value="preferred" label="Preferred" onClick={setStatus} />
-        <StatusButton current={active.status} value="final" label="Final" onClick={setStatus} />
       </div>
     </>
   );
