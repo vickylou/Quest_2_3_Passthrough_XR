@@ -1,6 +1,7 @@
 import { Correction, PEOPLE, PersonId } from '../types';
 import { useIsActiveReadOnly, useStore } from '../state/store';
 import { SectionIllustration } from './icons/SectionIllustration';
+import { MoveButtons } from './MoveButtons';
 import { toneStyle } from '../lib/tones';
 
 // Vicky shown first to match the Direct payments card.
@@ -21,6 +22,7 @@ export function CorrectionList() {
   const update = useStore((s) => s.updateCorrection);
   const remove = useStore((s) => s.removeCorrection);
   const add = useStore((s) => s.addCorrection);
+  const move = useStore((s) => s.moveCorrection);
   const readOnly = useIsActiveReadOnly();
   const tone = toneStyle('amber');
 
@@ -79,6 +81,7 @@ export function CorrectionList() {
                   onAdd={() => add(p.id)}
                   onUpdate={update}
                   onRemove={remove}
+                  onMove={move}
                   readOnly={readOnly}
                 />
               );
@@ -117,6 +120,7 @@ function PersonCorrectionGroup({
   onAdd,
   onUpdate,
   onRemove,
+  onMove,
   readOnly,
 }: {
   personId: PersonId;
@@ -128,6 +132,7 @@ function PersonCorrectionGroup({
   onAdd: () => void;
   onUpdate: (id: string, mut: (c: Correction) => Correction) => void;
   onRemove: (id: string) => void;
+  onMove: (id: string, direction: 'up' | 'down') => void;
   readOnly: boolean;
 }) {
   void personId;
@@ -163,12 +168,16 @@ function PersonCorrectionGroup({
         {corrections.length === 0 && (
           <p className="text-xs italic text-slate-400">Noch keine Korrekturen für {personName}.</p>
         )}
-        {corrections.map((c) => (
+        {corrections.map((c, idx) => (
           <CorrectionRow
             key={c.id}
             correction={c}
             onUpdate={onUpdate}
             onRemove={onRemove}
+            onMoveUp={() => onMove(c.id, 'up')}
+            onMoveDown={() => onMove(c.id, 'down')}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < corrections.length - 1}
             readOnly={readOnly}
           />
         ))}
@@ -190,11 +199,19 @@ function CorrectionRow({
   correction: c,
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   readOnly,
 }: {
   correction: Correction;
   onUpdate: (id: string, mut: (c: Correction) => Correction) => void;
   onRemove: (id: string) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   readOnly: boolean;
 }) {
   return (
@@ -220,7 +237,7 @@ function CorrectionRow({
         ))}
       </select>
       <input
-        className="field col-span-5 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-6"
+        className="field col-span-5 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-5"
         placeholder="Note (e.g. free housing, parental support)"
         value={c.note}
         onChange={(e) => onUpdate(c.id, (x) => ({ ...x, note: e.target.value }))}
@@ -241,14 +258,23 @@ function CorrectionRow({
         </span>
       </div>
       {!readOnly && (
-        <button
-          onClick={() => onRemove(c.id)}
-          className="btn-ghost col-span-12 px-2 py-0.5 text-rose-600 hover:bg-rose-50 md:col-span-1"
-          title="Remove correction"
-          aria-label="Remove correction"
-        >
-          ×
-        </button>
+        <div className="col-span-12 flex items-center justify-end md:col-span-2">
+          <MoveButtons
+            onUp={onMoveUp}
+            onDown={onMoveDown}
+            canUp={canMoveUp}
+            canDown={canMoveDown}
+            label="correction"
+          />
+          <button
+            onClick={() => onRemove(c.id)}
+            className="btn-ghost px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+            title="Remove correction"
+            aria-label="Remove correction"
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   );

@@ -30,6 +30,7 @@ export function computeBalances(scenario: Scenario): Balances {
   }
 
   for (const t of scenario.transfers) {
+    if (t.active === false) continue;
     // Only subtract from the sender if the sender is one of the four sisters.
     // Mum / Dad / Mum-and-Dad and the legacy null are external — no one's pool shrinks.
     if (t.from && PERSON_IDS.includes(t.from as PersonId)) {
@@ -153,11 +154,11 @@ export function computePersonBreakdown(scenario: Scenario, person: PersonId): Pe
     .filter((row) => Math.abs(row.amount) > 0.5 || row.percent > 0.01);
 
   const transfersIn = scenario.transfers
-    .filter((t) => t.to === person)
+    .filter((t) => t.to === person && t.active !== false)
     .map((t) => ({ id: t.id, name: t.name, from: t.from, amount: t.amount }));
 
   const transfersOut = scenario.transfers
-    .filter((t) => t.from === person)
+    .filter((t) => t.from === person && t.active !== false)
     .map((t) => ({ id: t.id, name: t.name, to: t.to, amount: t.amount }));
 
   const corrections = scenario.corrections

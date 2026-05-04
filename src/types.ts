@@ -68,19 +68,25 @@ export interface Asset {
    */
   helmhausSplit?: HelmhausSplitValues;
   /**
-   * Only used on the agricultural-land asset. When set to 'building', the
-   * card renders a spots × value/spot panel and the per-sister allocation
-   * is in whole spots instead of percentages. `agriculturalSnapshot`
-   * preserves the agricultural-mode values so toggling back is
-   * lossless. `buildingConfig` is the source of truth in building mode
-   * (totalValue and allocations are derived from it).
+   * Only used on the agricultural-land asset. The land is always divided
+   * into whole plots (spots) — `landMode` only changes which value-per-plot
+   * is active: the agricultural value or the building-property value.
+   * Spots and the per-sister whole-plot allocation are SHARED across modes
+   * (the land is physically divided the same way regardless of zoning).
+   *
+   * `buildingConfig` holds the live spots/valuePerSpot/perSister. The two
+   * `*ValuePerSpot` fields remember each mode's value-per-plot so toggling
+   * round-trips both edits without loss.
    */
   landMode?: 'agricultural' | 'building';
+  buildingConfig?: BuildingConfig;
+  agriculturalValuePerSpot?: number;
+  buildingValuePerSpot?: number;
+  /** @deprecated Pre-spots-everywhere snapshot. Ignored by the UI. */
   agriculturalSnapshot?: {
     totalValue: number;
     allocations: Allocation;
   };
-  buildingConfig?: BuildingConfig;
 }
 
 export interface BuildingConfig {
@@ -121,6 +127,13 @@ export interface Transfer {
   from: TransferSource;
   to: PersonId;
   amount: number;
+  /**
+   * When false, the payment is shown but excluded from the balance — same
+   * pattern as Corrections. Treat undefined as `true` so older saved data
+   * (which never had this field) continues to count toward the balance
+   * exactly as it did before.
+   */
+  active?: boolean;
 }
 
 export interface Correction {
