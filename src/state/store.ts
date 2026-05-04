@@ -36,7 +36,6 @@ interface StoreState extends PersistedState {
   saveAsNew: (overrides?: Partial<Scenario>) => string;
   duplicateActive: () => void;
   renameActive: (name: string) => void;
-  setAuthor: (author: Author) => void;
   setMeeting: (meeting: string | undefined) => void;
   setViewer: (viewer: Author) => void;
   setVisibility: (visibility: Visibility) => void;
@@ -70,6 +69,17 @@ function persistAndReturn<T extends PersistedState>(s: T): T {
   return next;
 }
 
+/**
+ * True when the active scenario is owned by the current viewer (so they can
+ * edit it). Read-only scenarios — public / shared ones authored by someone
+ * else — pass through every mutation as a no-op so a stray UI control or
+ * keyboard event can't corrupt state. The user has to Duplicate first.
+ */
+function canMutateActive(s: PersistedState): boolean {
+  const cur = s.scenarios[s.activeId];
+  return !!cur && cur.author === s.viewerId;
+}
+
 export const useStore = create<StoreState>()((set, get) => ({
   ...loadState(),
 
@@ -86,8 +96,8 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   updateActive: (mut) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
       const next = { ...mut(cur), updatedAt: Date.now() };
       const persisted = persistAndReturn({
         ...s,
@@ -108,6 +118,10 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...cur,
         ...overrides,
         id,
+        // Author is always the current viewer — RLS rejects anything else,
+        // and "creating on behalf of someone else" is no longer a workflow
+        // we support now that everyone signs in with their own account.
+        author: s.viewerId,
         status: 'draft',
         // New "Save as" copies always start private so people can experiment
         // before sharing. They can flip to Public / Shared from the bar.
@@ -136,6 +150,14 @@ export const useStore = create<StoreState>()((set, get) => ({
       const copy: Scenario = {
         ...cur,
         id,
+        // Duplicating someone else's read-only scenario MUST claim the copy
+        // for the current viewer; otherwise the new row would get rejected
+        // by RLS the moment they tried to make it Public / Shared.
+        author: s.viewerId,
+        // Always start the duplicate Private so they can edit freely without
+        // immediately exposing a half-edited draft.
+        visibility: 'private',
+        sharedWith: undefined,
         name: `${cur.name} (copy)`,
         status: 'draft',
         createdAt: Date.now(),
@@ -146,53 +168,64 @@ export const useStore = create<StoreState>()((set, get) => ({
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
-      if (copy.visibility !== 'private') schedulePush(copy, copy.visibility);
+      // Private duplicate — never pushed.
       return persisted;
     }),
 
   renameActive: (name) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
       const next = { ...cur, name, updatedAt: Date.now() };
-      return persistAndReturn({
+      const persisted = persistAndReturn({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-    }),
-
-  setAuthor: (author) =>
-    set((s) => {
-      const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
-      return persistAndReturn({
-        ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, author, updatedAt: Date.now() },
-        },
-      });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   setMeeting: (meeting) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
+      const next = { ...cur, meeting: meeting || undefined, updatedAt: Date.now() };
+      const persisted = persistAndReturn({
+        ...s,
+        scenarios: { ...s.scenarios, [s.activeId]: next },
+      });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
+    }),
+
+  setViewer: (viewer) =>
+    set((s) => {
+      // Re-stamp any private drafts whose author was the previous default
+      // (typically 'lisa' before the user signed in) so they belong to the
+      // newly-resolved real role. Without this, the visibility filter would
+      // hide the user's own old drafts under the "From others" tab — and
+      // because they're private, RLS would reject any later push too.
+      let touched = false;
+      const claimed: Record<string, Scenario> = {};
+      for (const [id, sc] of Object.entries(s.scenarios)) {
+        if (sc.visibility === 'private' && sc.author !== viewer) {
+          claimed[id] = { ...sc, author: viewer };
+          touched = true;
+        } else {
+          claimed[id] = sc;
+        }
+      }
       return persistAndReturn({
         ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, meeting: meeting || undefined, updatedAt: Date.now() },
-        },
+        viewerId: viewer,
+        scenarios: touched ? claimed : s.scenarios,
       });
     }),
 
-  setViewer: (viewer) => set((s) => persistAndReturn({ ...s, viewerId: viewer })),
-
   setVisibility: (visibility) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
       const prevVisibility = cur.visibility;
       const next = { ...cur, visibility, updatedAt: Date.now() };
       const persisted = persistAndReturn({
@@ -205,8 +238,8 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   setSharedWith: (people) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
       const next = { ...cur, sharedWith: people, updatedAt: Date.now() };
       const persisted = persistAndReturn({
         ...s,
@@ -246,6 +279,11 @@ export const useStore = create<StoreState>()((set, get) => ({
     set((s) => {
       const target = s.scenarios[id];
       if (!target) return s;
+      // You can only delete scenarios you authored. Cloud-pulled scenarios
+      // from other family members can be hidden by Duplicating + flipping
+      // their copy private, but the original stays under the author's
+      // control.
+      if (target.author !== s.viewerId) return s;
       const remaining = { ...s.scenarios };
       delete remaining[id];
       // Soft-delete on the cloud if the scenario was visible to anyone else.
@@ -260,8 +298,8 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   setStatus: (status) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
       const scenarios = { ...s.scenarios };
       if (status === 'final') {
         for (const id of Object.keys(scenarios)) {
@@ -270,34 +308,37 @@ export const useStore = create<StoreState>()((set, get) => ({
           }
         }
       }
-      scenarios[s.activeId] = { ...cur, status, updatedAt: Date.now() };
-      return persistAndReturn({ ...s, scenarios });
+      const next = { ...cur, status, updatedAt: Date.now() };
+      scenarios[s.activeId] = next;
+      const persisted = persistAndReturn({ ...s, scenarios });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   setNotes: (notes) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
-      return persistAndReturn({
+      const next = { ...cur, notes, updatedAt: Date.now() };
+      const persisted = persistAndReturn({
         ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, notes, updatedAt: Date.now() },
-        },
+        scenarios: { ...s.scenarios, [s.activeId]: next },
       });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   setAssumptions: (assumptions) =>
     set((s) => {
+      if (!canMutateActive(s)) return s;
       const cur = s.scenarios[s.activeId];
-      if (!cur) return s;
-      return persistAndReturn({
+      const next = { ...cur, assumptions, updatedAt: Date.now() };
+      const persisted = persistAndReturn({
         ...s,
-        scenarios: {
-          ...s.scenarios,
-          [s.activeId]: { ...cur, assumptions, updatedAt: Date.now() },
-        },
+        scenarios: { ...s.scenarios, [s.activeId]: next },
       });
+      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      return persisted;
     }),
 
   resetToDefault: () => set(() => persistAndReturn(defaultState())),
@@ -398,3 +439,14 @@ export const useStore = create<StoreState>()((set, get) => ({
       corrections: s.corrections.filter((c) => c.id !== id),
     })),
 }));
+
+/**
+ * True when the active scenario is owned by someone else (so the UI should
+ * render in read-only mode and gate edits behind a Duplicate action).
+ */
+export function useIsActiveReadOnly(): boolean {
+  return useStore((s) => {
+    const cur = s.scenarios[s.activeId];
+    return !!cur && cur.author !== s.viewerId;
+  });
+}

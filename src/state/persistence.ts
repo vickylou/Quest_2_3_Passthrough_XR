@@ -20,7 +20,7 @@ export function loadState(): PersistedState {
           parsed.activeId = Object.keys(parsed.scenarios)[0];
         }
         if (!parsed.viewerId) parsed.viewerId = 'lisa';
-        return parsed;
+        return claimOwnPrivateScenarios(parsed);
       }
     }
     // Legacy: lift older schemas into the new shape so users don't lose work.
@@ -28,7 +28,7 @@ export function loadState(): PersistedState {
       const legacy = localStorage.getItem(key);
       if (!legacy) continue;
       try {
-        return migrateLegacy(JSON.parse(legacy));
+        return claimOwnPrivateScenarios(migrateLegacy(JSON.parse(legacy)));
       } catch {
         /* try next key */
       }
@@ -37,6 +37,34 @@ export function loadState(): PersistedState {
   } catch {
     return defaultState();
   }
+}
+
+/**
+ * One-shot recovery for users whose private drafts were authored under a
+ * different role (typically `lisa`, the seed default) before the auth gate
+ * tied each device to a real role. Such drafts were silently hidden by the
+ * visibility filter (`author !== viewer`). Re-stamping the author rescues
+ * them and also makes any future flip to Public / Shared accepted by RLS,
+ * since the cloud check is `author = viewer_role()`.
+ *
+ * Only PRIVATE scenarios are claimed. Public / shared rows might have come
+ * from a cloud pull (where they're someone else's), so we leave those alone.
+ */
+function claimOwnPrivateScenarios(state: PersistedState): PersistedState {
+  const viewer = state.viewerId;
+  if (!viewer) return state;
+  let touched = false;
+  const next: Record<string, Scenario> = {};
+  for (const [id, sc] of Object.entries(state.scenarios)) {
+    if (sc.visibility === 'private' && sc.author !== viewer) {
+      next[id] = { ...sc, author: viewer };
+      touched = true;
+    } else {
+      next[id] = sc;
+    }
+  }
+  if (!touched) return state;
+  return { ...state, scenarios: next };
 }
 
 export function saveState(state: PersistedState): void {

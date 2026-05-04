@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Asset, AssetSubItem, PERSON_IDS, PEOPLE, PersonId } from '../types';
-import { useStore } from '../state/store';
+import { useIsActiveReadOnly, useStore } from '../state/store';
 import { formatEuro, formatPercent, uid } from '../lib/format';
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
@@ -14,12 +14,15 @@ export function AssetTable() {
   const updateAsset = useStore((s) => s.updateAsset);
   const removeAsset = useStore((s) => s.removeAsset);
   const addAsset = useStore((s) => s.addAsset);
+  const readOnly = useIsActiveReadOnly();
 
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold tracking-tight">Assets</h2>
-        <button onClick={addAsset} className="btn">+ Asset</button>
+        {!readOnly && (
+          <button onClick={addAsset} className="btn">+ Asset</button>
+        )}
       </div>
 
       <div className="space-y-3" data-pdf-capture="asset-list">
@@ -30,6 +33,7 @@ export function AssetTable() {
             onChange={(mut) => updateAsset(asset.id, mut)}
             onRemove={() => removeAsset(asset.id)}
             isHouse={HOUSE_IDS.has(asset.id)}
+            readOnly={readOnly}
           />
         ))}
       </div>
@@ -42,11 +46,13 @@ function AssetCard({
   onChange,
   onRemove,
   isHouse,
+  readOnly,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   onRemove: () => void;
   isHouse: boolean;
+  readOnly: boolean;
 }) {
   const tone = toneStyle(asset.tone);
   const sum = PERSON_IDS.reduce((acc, p) => acc + (asset.allocations[p] ?? 0), 0);
@@ -63,25 +69,32 @@ function AssetCard({
         <div className="min-w-0 p-3 md:p-4">
           <div className="mb-2 flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <AssetTitle name={asset.name} onRename={(name) => onChange((a) => ({ ...a, name }))} />
+              <AssetTitle
+                name={asset.name}
+                onRename={(name) => onChange((a) => ({ ...a, name }))}
+                readOnly={readOnly}
+              />
               {asset.notes && (
                 <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
               )}
             </div>
-            <button
-              onClick={onRemove}
-              className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
-              title="Remove asset"
-              aria-label="Remove asset"
-            >
-              ×
-            </button>
+            {!readOnly && (
+              <button
+                onClick={onRemove}
+                className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+                title="Remove asset"
+                aria-label="Remove asset"
+              >
+                ×
+              </button>
+            )}
           </div>
 
           <div className="mb-2 flex items-end gap-3">
             <TotalValueField
               value={asset.totalValue}
               onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
+              readOnly={readOnly}
             />
             <span
               className={`pill ${sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
@@ -91,10 +104,10 @@ function AssetCard({
             </span>
           </div>
 
-          <PercentGrid asset={asset} onChange={onChange} />
+          <PercentGrid asset={asset} onChange={onChange} readOnly={readOnly} />
 
           {(hasBreakdown || isHouse) && (
-            <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} />
+            <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} readOnly={readOnly} />
           )}
 
           {isHouse && (
@@ -102,6 +115,7 @@ function AssetCard({
               value={asset.internalBreakdown ?? ''}
               onChange={(v) => onChange((a) => ({ ...a, internalBreakdown: v }))}
               accent={tone.accent}
+              readOnly={readOnly}
             />
           )}
         </div>
@@ -120,9 +134,25 @@ function AssetCard({
   );
 }
 
-function AssetTitle({ name, onRename }: { name: string; onRename: (n: string) => void }) {
+function AssetTitle({
+  name,
+  onRename,
+  readOnly,
+}: {
+  name: string;
+  onRename: (n: string) => void;
+  readOnly: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+
+  if (readOnly) {
+    return (
+      <span className="text-base font-semibold tracking-tight text-slate-800 md:text-lg">
+        {name}
+      </span>
+    );
+  }
 
   if (editing) {
     return (
@@ -162,7 +192,15 @@ function AssetTitle({ name, onRename }: { name: string; onRename: (n: string) =>
   );
 }
 
-function TotalValueField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function TotalValueField({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  readOnly: boolean;
+}) {
   return (
     <div>
       <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
@@ -172,9 +210,10 @@ function TotalValueField({ value, onChange }: { value: number; onChange: (v: num
         <input
           type="number"
           inputMode="decimal"
-          className="field w-44 pr-7 py-1.5 text-sm tabular-nums"
+          className="field w-44 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
+          disabled={readOnly}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
           €
@@ -187,16 +226,18 @@ function TotalValueField({ value, onChange }: { value: number; onChange: (v: num
 function PercentGrid({
   asset,
   onChange,
+  readOnly,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
+  readOnly: boolean;
 }) {
   const sum = PERSON_IDS.reduce((acc, p) => acc + (asset.allocations[p] ?? 0), 0);
   const sumOff = Math.abs(sum - 100) > 0.05;
   const [anchor, setAnchor] = useState<PersonId | null>(null);
 
   const suggestion =
-    sumOff && anchor
+    sumOff && anchor && !readOnly
       ? suggestProportional(asset.allocations, anchor, asset.allocations[anchor] ?? 0)
       : null;
 
@@ -228,6 +269,7 @@ function PercentGrid({
             suggestion={sug}
             onChange={(v) => setShare(p.id, v)}
             onAcceptSuggestion={() => applySuggestion(p.id)}
+            readOnly={readOnly}
           />
         );
       })}
@@ -243,6 +285,7 @@ function PersonShareCell({
   suggestion,
   onChange,
   onAcceptSuggestion,
+  readOnly,
 }: {
   name: string;
   colors: { primary: string; accent: string };
@@ -251,6 +294,7 @@ function PersonShareCell({
   suggestion: number | null;
   onChange: (v: number) => void;
   onAcceptSuggestion: () => void;
+  readOnly: boolean;
 }) {
   const gradient = `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`;
   return (
@@ -271,9 +315,10 @@ function PersonShareCell({
           type="number"
           inputMode="decimal"
           step="0.01"
-          className="field py-1 pr-7 text-right text-sm tabular-nums"
+          className="field py-1 pr-7 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
           value={percent}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
+          disabled={readOnly}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
           %
@@ -296,10 +341,12 @@ function BreakdownPanel({
   asset,
   onChange,
   accent,
+  readOnly,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   accent: string;
+  readOnly: boolean;
 }) {
   const items = asset.subItems ?? [];
   const subSum = items.reduce((acc, i) => acc + (i.amount ?? 0), 0);
@@ -341,38 +388,46 @@ function BreakdownPanel({
           {items.map((i) => (
             <div key={i.id} className="flex items-center gap-1.5">
               <input
-                className="field flex-1 py-1 text-xs"
+                className="field flex-1 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-600"
                 value={i.label}
                 onChange={(e) => updateItem(i.id, (x) => ({ ...x, label: e.target.value }))}
+                disabled={readOnly}
               />
               <div className="relative w-24">
                 <input
                   type="number"
                   inputMode="decimal"
-                  className="field py-1 pr-5 text-right text-xs tabular-nums"
+                  className="field py-1 pr-5 text-right text-xs tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
                   value={i.amount}
                   onChange={(e) =>
                     updateItem(i.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
                   }
+                  disabled={readOnly}
                 />
                 <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
                   €
                 </span>
               </div>
-              <button
-                onClick={() => removeItem(i.id)}
-                className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
-                title="Remove component"
-              >
-                ×
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => removeItem(i.id)}
+                  className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
+                  title="Remove component"
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs">
-          <button onClick={addItem} className="btn-ghost px-2 py-0.5 text-slate-600">
-            + Add component
-          </button>
+          {!readOnly ? (
+            <button onClick={addItem} className="btn-ghost px-2 py-0.5 text-slate-600">
+              + Add component
+            </button>
+          ) : (
+            <span />
+          )}
           <span className="font-medium tabular-nums text-slate-800">
             Total {formatEuro(asset.totalValue)}
           </span>
@@ -391,10 +446,12 @@ function InternalBreakdownPanel({
   value,
   onChange,
   accent,
+  readOnly,
 }: {
   value: string;
   onChange: (v: string) => void;
   accent: string;
+  readOnly: boolean;
 }) {
   return (
     <details className="mt-2 rounded-md border bg-white" style={{ borderColor: accent + '33' }}>
@@ -403,10 +460,11 @@ function InternalBreakdownPanel({
       </summary>
       <div className="border-t border-slate-200 p-2">
         <textarea
-          className="field min-h-[80px] text-xs"
+          className="field min-h-[80px] text-xs disabled:bg-slate-50 disabled:text-slate-600"
           placeholder="Free text for now — paste a detailed split-up of who lives where, who pays what, future intentions, etc. We'll add structured fields once you've shared the full description."
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          disabled={readOnly}
         />
       </div>
     </details>
