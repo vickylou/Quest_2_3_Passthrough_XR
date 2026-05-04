@@ -115,18 +115,18 @@ function AssetCard({
               </div>
             </div>
 
-            {/* Mobile-only illustration: ~22% of card width in the top-right
-                corner, spans the height of title + notes + total value
-                block via flex stretch. Hidden on md+ because the desktop
-                illustration lives in its own column on the right. */}
+            {/* Mobile-only illustration: roughly square thumbnail in the
+                top-right corner, height matches title + notes + total
+                value block via flex stretch. Hidden on md+ because the
+                desktop illustration lives in its own column on the right. */}
             <div
-              className="flex w-20 shrink-0 items-center justify-center self-stretch overflow-hidden rounded-md md:hidden"
+              className="flex w-40 shrink-0 items-center justify-center self-stretch overflow-hidden rounded-md md:hidden"
               style={{ background: tone.imageBg }}
               aria-hidden
             >
               <AssetIllustration
                 imageKey={asset.imageKey}
-                className="h-full w-full max-h-24 p-1"
+                className="h-full w-full max-h-32 p-1"
                 tint={tone.accent}
               />
             </div>
@@ -240,7 +240,7 @@ function TotalValueField({
         <input
           type="number"
           inputMode="decimal"
-          className="field w-32 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
+          className="field w-28 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
           disabled={readOnly}
