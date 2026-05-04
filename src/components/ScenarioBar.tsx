@@ -73,7 +73,7 @@ export function ScenarioBar() {
   }
 
   return (
-    <section className="card">
+    <section className="card !p-3 md:!p-4">
       <TabSwitch
         current={tab}
         mineCount={mineScenarios.length}
@@ -162,7 +162,7 @@ function TabSwitch({
   return (
     <div
       role="tablist"
-      className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-sm"
+      className="inline-flex rounded-lg border border-indigo-300 bg-white p-0.5 text-sm shadow-sm"
     >
       <TabButton
         active={current === 'mine'}
@@ -205,14 +205,20 @@ function TabButton({
       aria-selected={active}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-md px-3 py-1 transition ${
+      className={`rounded-md px-3 py-1 text-sm font-medium transition ${
         active
-          ? 'bg-white text-slate-900 shadow-sm'
-          : 'text-slate-500 hover:text-slate-700 disabled:opacity-40'
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 disabled:opacity-40'
       }`}
     >
       {label}{' '}
-      <span className={`text-xs ${active ? 'text-slate-500' : 'text-slate-400'}`}>({count})</span>
+      <span
+        className={`ml-0.5 inline-block rounded-full px-1.5 text-[10px] font-semibold ${
+          active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+        }`}
+      >
+        {count}
+      </span>
     </button>
   );
 }
@@ -400,13 +406,13 @@ function MineToolbar({
 }) {
   return (
     <>
-      <div className="mt-3 flex flex-wrap items-end gap-2">
+      <div className="mt-2 flex flex-wrap items-end gap-1.5">
         <div className="flex flex-col">
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Meeting (optional)
           </label>
           <input
-            className="field"
+            className="field py-1 text-sm"
             placeholder="e.g. Family meeting Dec 15"
             value={active.meeting ?? ''}
             onChange={(e) => setMeeting(e.target.value)}
@@ -418,7 +424,7 @@ function MineToolbar({
             Visibility
           </label>
           <select
-            className="field"
+            className="field py-1 text-sm"
             value={active.visibility}
             onChange={(e) => setVisibility(e.target.value as Visibility)}
             title="Who can see this scenario"
@@ -444,7 +450,7 @@ function MineToolbar({
 
         {active.visibility !== 'private' && (
           <button
-            className="btn-primary"
+            className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
             onClick={openShareLink}
             title="Generate a link you can paste into WhatsApp / iMessage / email"
           >
@@ -453,10 +459,10 @@ function MineToolbar({
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {!renaming ? (
           <button
-            className="btn"
+            className="btn btn-compact"
             onClick={() => {
               setRenameValue(active.name);
               setRenaming(true);
@@ -465,15 +471,15 @@ function MineToolbar({
             Rename
           </button>
         ) : (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5">
             <input
-              className="field"
+              className="field py-1 text-sm"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               autoFocus
             />
             <button
-              className="btn-primary"
+              className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
               onClick={() => {
                 renameActive(renameValue.trim() || active.name);
                 setRenaming(false);
@@ -481,39 +487,46 @@ function MineToolbar({
             >
               OK
             </button>
-            <button className="btn" onClick={() => setRenaming(false)}>
+            <button className="btn btn-compact" onClick={() => setRenaming(false)}>
               Cancel
             </button>
           </span>
         )}
-        <button className="btn-primary" onClick={openSaveModal}>
-          Save as new scenario
+        <button
+          className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
+          onClick={openSaveModal}
+        >
+          Save as new
         </button>
-        <button className="btn" onClick={duplicateActive}>
+        <button className="btn btn-compact" onClick={duplicateActive}>
           Duplicate
         </button>
         <button
-          className="btn"
+          className="btn btn-compact"
           onClick={() => {
             if (confirm(`Delete scenario "${active.name}"?`)) deleteScenario();
           }}
         >
           Delete
         </button>
-        <button className="btn" onClick={() => exportScenarioPDF(active)}>
+        <button className="btn btn-compact" onClick={() => exportScenarioPDF(active)}>
           Export PDF
         </button>
         <button
-          className="btn"
+          className="btn btn-compact"
           onClick={() => {
-            if (confirm('Load demo data? Three example scenarios will be added — current scenarios will be lost.'))
+            if (
+              confirm(
+                'Load demo data? Three example scenarios will be added — current scenarios will be lost.'
+              )
+            )
               loadExample();
           }}
         >
           Load example
         </button>
         <button
-          className="btn-ghost text-slate-500"
+          className="btn-ghost px-2 py-1 text-xs text-slate-500"
           onClick={() => {
             if (confirm('Start fresh with a single blank scenario? Current scenarios will be lost.'))
               resetToDefault();
@@ -525,8 +538,8 @@ function MineToolbar({
         <SavedBadge lastSavedAt={lastSavedAt} />
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-slate-600">Status:</span>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] font-medium text-slate-600">Status:</span>
         <StatusButton current={active.status} value="draft" label="Draft" onClick={setStatus} />
         <StatusButton current={active.status} value="preferred" label="Preferred" onClick={setStatus} />
         <StatusButton current={active.status} value="final" label="Final" onClick={setStatus} />
@@ -544,18 +557,21 @@ function OthersToolbar({
 }) {
   return (
     <>
-      <div className="mt-3 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+      <div className="mt-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
         <AuthorBadge author={active.author} size="md" />
         <span>
-          Read-only — created by <strong>{authorName(active.author)}</strong>. Click Duplicate to
+          Read-only — created by <strong>{authorName(active.author)}</strong>. Tap Duplicate to
           edit your own copy.
         </span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn-primary" onClick={duplicateActive}>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <button
+          className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
+          onClick={duplicateActive}
+        >
           Duplicate to edit
         </button>
-        <button className="btn" onClick={() => exportScenarioPDF(active)}>
+        <button className="btn btn-compact" onClick={() => exportScenarioPDF(active)}>
           Export PDF
         </button>
       </div>
@@ -671,7 +687,7 @@ function StatusButton({
   const active = current === value;
   return (
     <button
-      className={`pill px-3 py-1 ${
+      className={`pill px-2 py-0.5 text-[11px] ${
         active
           ? value === 'final'
             ? 'bg-emerald-600 text-white'
