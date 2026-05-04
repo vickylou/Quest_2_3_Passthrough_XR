@@ -7,10 +7,53 @@ import {
   LANDWIRTSCHAFT_ID,
   WEBERHAUS_ID,
   blankScenario,
+  defaultAssets,
   v0Scenario,
   v1Scenario,
   v2Scenario,
 } from '../data/seed';
+
+/** Asset IDs that represent the actual estate items — these are part of the
+ *  family inheritance, not user-added rows, so they should never disappear
+ *  from a scenario. The × delete button is hidden on these in the UI, and
+ *  any scenario that's missing one gets it auto-restored on load. */
+export const CANONICAL_ASSET_IDS: ReadonlyArray<string> = [
+  HELMHAUS_ID,
+  WEBERHAUS_ID,
+  BAUGRUND_1_ID,
+  BAUGRUND_2_ID,
+  CASH_ID,
+  LANDWIRTSCHAFT_ID,
+];
+
+const CANONICAL_ASSET_ID_SET = new Set<string>(CANONICAL_ASSET_IDS);
+
+export function isCanonicalAsset(id: string): boolean {
+  return CANONICAL_ASSET_ID_SET.has(id);
+}
+
+/** Restores any of the six canonical seed assets that have been deleted from
+ *  a scenario. Missing assets are inserted at the start of the asset list
+ *  with their canonical default values (allocations zeroed if you'd like to
+ *  edit fresh). Without this, a stray tap on the × button silently dropped
+ *  Helmhaus and there was no UI to bring it back. */
+function ensureCanonicalAssets(state: PersistedState): PersistedState {
+  const seed = defaultAssets();
+  let touched = false;
+  const next: Record<string, Scenario> = {};
+  for (const [id, sc] of Object.entries(state.scenarios)) {
+    const existingIds = new Set(sc.assets.map((a) => a.id));
+    const missing = seed.filter((a) => !existingIds.has(a.id));
+    if (missing.length > 0) {
+      next[id] = { ...sc, assets: [...missing, ...sc.assets] };
+      touched = true;
+    } else {
+      next[id] = sc;
+    }
+  }
+  if (!touched) return state;
+  return { ...state, scenarios: next };
+}
 
 const STORAGE_KEY = 'inheritance.v3';
 const LEGACY_KEYS = ['inheritance.v2', 'inheritance.v1'];
@@ -31,7 +74,7 @@ export function loadState(): PersistedState {
           parsed.activeId = Object.keys(parsed.scenarios)[0];
         }
         if (!parsed.viewerId) parsed.viewerId = 'lisa';
-        return ensureCanonicalTones(claimOwnPrivateScenarios(parsed));
+        return ensureCanonicalAssets(ensureCanonicalTones(claimOwnPrivateScenarios(parsed)));
       }
     }
     // Legacy: lift older schemas into the new shape so users don't lose work.
@@ -39,7 +82,7 @@ export function loadState(): PersistedState {
       const legacy = localStorage.getItem(key);
       if (!legacy) continue;
       try {
-        return ensureCanonicalTones(claimOwnPrivateScenarios(migrateLegacy(JSON.parse(legacy))));
+        return ensureCanonicalAssets(ensureCanonicalTones(claimOwnPrivateScenarios(migrateLegacy(JSON.parse(legacy)))));
       } catch {
         /* try next key */
       }
