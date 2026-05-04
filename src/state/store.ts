@@ -145,8 +145,10 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      // Push only if it's a sharable scenario; private edits stay local.
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      // Every visibility — including private — is pushed. RLS keeps
+      // private rows readable only by the author, so they stay private
+      // while still being cloud-backed against device wipes.
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -193,7 +195,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
-      if (copy.visibility !== 'private') schedulePush(copy, copy.visibility);
+      schedulePush(copy, copy.visibility);
       return persisted;
     });
     return savedId;
@@ -225,7 +227,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         scenarios: { ...s.scenarios, [id]: copy },
         activeId: id,
       });
-      // Private duplicate — never pushed.
+      schedulePush(copy, copy.visibility);
       return persisted;
     }),
 
@@ -238,7 +240,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -251,7 +253,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -302,7 +304,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -343,10 +345,9 @@ export const useStore = create<StoreState>()((set, get) => ({
       if (target.author !== s.viewerId) return s;
       const remaining = { ...s.scenarios };
       delete remaining[id];
-      // Soft-delete on the cloud if the scenario was visible to anyone else.
-      if (target.visibility !== 'private') {
-        void syncDelete(id);
-      }
+      // Soft-delete on the cloud — even private rows live there now (RLS
+      // keeps them owner-only) so deletes need to propagate too.
+      void syncDelete(id);
       const ids = Object.keys(remaining);
       if (ids.length === 0) return persistAndReturn(defaultState(s.viewerId));
       const activeId = s.activeId === id ? ids[0] : s.activeId;
@@ -368,7 +369,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       const next = { ...cur, status, updatedAt: Date.now() };
       scenarios[s.activeId] = next;
       const persisted = persistAndReturn({ ...s, scenarios });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -381,7 +382,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
@@ -394,7 +395,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         ...s,
         scenarios: { ...s.scenarios, [s.activeId]: next },
       });
-      if (next.visibility !== 'private') schedulePush(next, next.visibility);
+      schedulePush(next, next.visibility);
       return persisted;
     }),
 
