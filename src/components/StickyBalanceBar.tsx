@@ -31,36 +31,27 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
 
   // When the header collapses on mobile, slide the bar up to fill the gap;
   // on md+ the header doesn't collapse so the bar stays anchored just below
-  // it like before.
-  const stickTop = headerHidden ? 'top-0 md:top-[60px]' : 'top-[44px] md:top-[60px]';
+  // it like before. When expanded on phone the bar can grow beyond the
+  // viewport (4 chips × breakdown) — releasing sticky in that case lets the
+  // user scroll the bar like normal page content so the Hide button always
+  // remains reachable. md+ keeps sticky regardless because there's room.
+  const stickyClass = expanded
+    ? 'relative md:sticky md:top-[60px]'
+    : headerHidden
+      ? 'sticky top-0 md:top-[60px]'
+      : 'sticky top-[44px] md:top-[60px]';
 
   return (
     <div
-      className={`sticky z-20 border-b border-indigo-200 bg-indigo-50/95 backdrop-blur transition-[top] duration-200 ${stickTop}`}
+      className={`${stickyClass} z-20 border-b border-indigo-200 bg-indigo-50/95 backdrop-blur transition-[top] duration-200`}
       data-pdf-capture="balance-bar"
     >
       <div className="mx-auto max-w-6xl px-3 py-2 md:px-6">
-        {/* Phone: 2 columns when collapsed for the at-a-glance read; one
-            column when expanded so each chip's breakdown has the full
-            width to render its asset / transfer / correction lines. */}
-        <div
-          className={`grid gap-1.5 md:grid-cols-4 ${
-            expanded ? 'grid-cols-1' : 'grid-cols-2'
-          }`}
-        >
-          {PEOPLE.map((p) => (
-            <SisterChip
-              key={p.id}
-              personId={p.id}
-              total={balances.perPerson[p.id]}
-              diff={balances.diff[p.id]}
-              expanded={expanded}
-            />
-          ))}
-        </div>
-
-        {/* Goal / fairness strip + ONE master toggle for all four breakdowns. */}
-        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        {/* Goal / fairness strip + ONE master toggle. Placed ABOVE the
+            chips grid so the Hide breakdown button is always the first
+            interactive element when the bar is expanded — even if the
+            chip breakdowns push the rest off-screen. */}
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
           <span>
             Goal{' '}
             <span className="font-semibold tabular-nums text-slate-800">
@@ -83,6 +74,25 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
             </span>
             <span>{expanded ? 'Hide breakdown' : 'Show breakdown'}</span>
           </button>
+        </div>
+
+        {/* Phone: 2 columns when collapsed for the at-a-glance read; one
+            column when expanded so each chip's breakdown has the full
+            width to render its asset / transfer / correction lines. */}
+        <div
+          className={`grid gap-1.5 md:grid-cols-4 ${
+            expanded ? 'grid-cols-1' : 'grid-cols-2'
+          }`}
+        >
+          {PEOPLE.map((p) => (
+            <SisterChip
+              key={p.id}
+              personId={p.id}
+              total={balances.perPerson[p.id]}
+              diff={balances.diff[p.id]}
+              expanded={expanded}
+            />
+          ))}
         </div>
       </div>
     </div>
