@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 /**
  * Detailed Helmhaus internal-split panel — replaces the free-text
  * "Internal split" textarea on the Helmhaus asset card. Mirrors the
@@ -40,6 +42,7 @@ export function HelmhausSplit() {
       <Section num={3} title="Was noch fehlt">
         <OpenItems />
       </Section>
+      <AdjustmentTool />
       <Section num={4} title="Ansichten vom Haus">
         <Views />
       </Section>
@@ -1638,5 +1641,279 @@ function SubtotalRow({ label, value }: { label: string; value: string }) {
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">{value}</td>
     </tr>
+  );
+}
+
+/**
+ * Interactive adjustment tool. Lets the user experiment with different card
+ * Gesamtwert values, the EG/OG-Aufschlag percentage, and the target
+ * Verkehrswert — and see for each card a "Vorschlag" of what its value
+ * would have to be to balance the calculation. The displayed numbers in
+ * the cards above don't change; this is a separate playground at the
+ * bottom for "what-if" exploration.
+ */
+const DEFAULT_CARD_VALUES = {
+  eg: 601_890,
+  ogLisa: 128_110,
+  ogVicky: 335_560,
+  praxis: 138_210,
+  lisaGarage: 26_250,
+  vickyGarageLager: 32_670,
+  dg: 56_820,
+  allg: 1_700,
+};
+
+type CardKey = keyof typeof DEFAULT_CARD_VALUES;
+
+const CARD_LABELS: Record<CardKey, string> = {
+  eg: 'EG · Erdgeschoss',
+  ogLisa: 'OG · Lisa-Teil (~30 m²)',
+  ogVicky: 'OG · Vicky-Teil (~69 m² + Außen)',
+  praxis: 'KG · Praxis',
+  lisaGarage: 'KG · Lisa-Garage (½)',
+  vickyGarageLager: 'KG · Vicky-Garage (½) + Lager',
+  dg: 'DG · Dachgeschoss',
+  allg: 'Garten allgemein',
+};
+
+const CARD_TONE: Record<CardKey, string> = {
+  eg: '#6a9a5a',
+  ogLisa: '#5a8fd6',
+  ogVicky: '#c9b65d',
+  praxis: '#6a8aa6',
+  lisaGarage: '#5a8fd6',
+  vickyGarageLager: '#c9b65d',
+  dg: '#c98b3a',
+  allg: '#9a9a9a',
+};
+
+function AdjustmentTool() {
+  const [target, setTarget] = useState(1_321_141);
+  const [aufschlag, setAufschlag] = useState(30);
+  const [values, setValues] = useState<Record<CardKey, number>>(DEFAULT_CARD_VALUES);
+
+  const total = (Object.values(values) as number[]).reduce((a, b) => a + b, 0);
+  const diff = total - target;
+
+  // Per-card suggestion: what would this card need to be so that ALL the
+  // current values sum to the target? (= target − sum of all OTHER cards.)
+  function suggestionForBalance(key: CardKey): number {
+    const otherSum = (Object.entries(values) as [CardKey, number][])
+      .filter(([k]) => k !== key)
+      .reduce((acc, [, v]) => acc + v, 0);
+    return target - otherSum;
+  }
+
+  // EG/OG ratio suggestion. The "30 % Aufschlag" means EG €/m² is 30 % more
+  // than OG €/m². Across the totals (EG 103 m² vs OG 99 m²) this works out
+  // to: EG_total / OG_total = (1 + Aufschlag/100) × (103 / 99). With the
+  // remaining cards (Praxis / Garage / DG / Allg) held at user values, EG
+  // and OG split the leftover Verkehrswert by that ratio.
+  const egPlusOg =
+    target -
+    values.praxis -
+    values.lisaGarage -
+    values.vickyGarageLager -
+    values.dg -
+    values.allg;
+  const egToOgRatio = (1 + aufschlag / 100) * (103 / 99);
+  const ogTotalSuggested = egPlusOg / (1 + egToOgRatio);
+  const egTotalSuggested = egToOgRatio * ogTotalSuggested;
+  // Split OG total Lisa / Vicky in the same proportion as the original
+  // valuation (≈ 27.6 % Lisa / 72.4 % Vicky — Vicky's share is bigger
+  // because she gets the OG Außen / Balkone too).
+  const ogLisaShare =
+    DEFAULT_CARD_VALUES.ogLisa /
+    (DEFAULT_CARD_VALUES.ogLisa + DEFAULT_CARD_VALUES.ogVicky);
+  const ogLisaSuggested = ogTotalSuggested * ogLisaShare;
+  const ogVickySuggested = ogTotalSuggested * (1 - ogLisaShare);
+
+  const ratioSuggestions: Partial<Record<CardKey, number>> = {
+    eg: egTotalSuggested,
+    ogLisa: ogLisaSuggested,
+    ogVicky: ogVickySuggested,
+  };
+
+  function setValue(key: CardKey, n: number) {
+    setValues((v) => ({ ...v, [key]: n }));
+  }
+
+  function reset() {
+    setTarget(1_321_141);
+    setAufschlag(30);
+    setValues(DEFAULT_CARD_VALUES);
+  }
+
+  return (
+    <section
+      className="rounded-xl border border-amber-200 p-4 shadow-sm"
+      style={{ background: 'linear-gradient(135deg, #fdf8ec 0%, #fbf2dc 100%)' }}
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="m-0 flex items-center gap-2 text-base font-bold">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+            🧮
+          </span>
+          Anpassungs-Werkzeug
+        </h3>
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          ↺ Zurücksetzen
+        </button>
+      </div>
+      <p className="mb-3 text-xs text-slate-500">
+        Spielwiese: ändere den Verkehrswert, den Aufschlag oder einzelne Karten-Werte und sieh, welche
+        Werte die anderen Karten dann hätten, damit sich alles ausgleicht. Die Werte der Karten oben
+        bleiben unverändert.
+      </p>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <NumberField
+          label="Verkehrswert (Ziel)"
+          value={target}
+          onChange={setTarget}
+          suffix="€"
+        />
+        <NumberField
+          label="EG/OG-Aufschlag"
+          value={aufschlag}
+          onChange={setAufschlag}
+          suffix="%"
+          step={1}
+        />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-300 bg-white px-3 py-2 text-xs">
+        <span>
+          Σ aktuell: <strong className="tabular-nums">{fmt(total)}</strong>
+        </span>
+        <span>
+          Soll: <strong className="tabular-nums">{fmt(target)}</strong>
+        </span>
+        <span
+          className={`tabular-nums font-bold ${
+            Math.abs(diff) < 50 ? 'text-emerald-700' : 'text-rose-700'
+          }`}
+        >
+          Differenz: {diff >= 0 ? '+' : ''}
+          {fmt(diff)}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-1.5">
+        {(Object.keys(values) as CardKey[]).map((key) => {
+          const balanceSugg = suggestionForBalance(key);
+          const ratioSugg = ratioSuggestions[key];
+          return (
+            <div
+              key={key}
+              className="rounded-md border bg-white px-3 py-2"
+              style={{ borderColor: CARD_TONE[key] + '66' }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: CARD_TONE[key] }}
+                  />
+                  {CARD_LABELS[key]}
+                </div>
+                <NumberField
+                  label=""
+                  value={values[key]}
+                  onChange={(n) => setValue(key, n)}
+                  suffix="€"
+                  compact
+                />
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] text-slate-500">
+                <SuggestionLine
+                  label="Vorschlag (Σ ausgleichen)"
+                  value={balanceSugg}
+                  onApply={() => setValue(key, Math.round(balanceSugg))}
+                />
+                {ratioSugg !== undefined && (
+                  <SuggestionLine
+                    label={`Vorschlag (${aufschlag}% Aufschlag)`}
+                    value={ratioSugg}
+                    onApply={() => setValue(key, Math.round(ratioSugg))}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  suffix,
+  step = 1000,
+  compact,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  suffix?: string;
+  step?: number;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? '' : 'flex flex-col'}>
+      {label && (
+        <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        <input
+          type="number"
+          step={step}
+          inputMode="numeric"
+          className={`field py-1 pr-7 text-right tabular-nums ${compact ? 'w-32 text-sm' : 'w-full text-sm'}`}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value) || 0)}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        {suffix && (
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+            {suffix}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SuggestionLine({
+  label,
+  value,
+  onApply,
+}: {
+  label: string;
+  value: number;
+  onApply: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>{label}:</span>
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onApply}
+        className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-800 hover:bg-amber-100"
+        title="Klicken um anzuwenden"
+      >
+        {fmt(value)} →
+      </button>
+    </span>
   );
 }
