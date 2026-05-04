@@ -27,6 +27,17 @@ export function computeBalances(scenario: Scenario): Balances {
       const pct = asset.allocations[p] ?? 0;
       perPersonAsset[p] += (asset.totalValue * pct) / 100;
     }
+    // Additive sub-items (e.g. renovation costs). Each row adds to the
+    // asset's effective total and is split per its own per-sister
+    // percentages, falling back to the parent allocation when unset.
+    for (const sub of asset.subItems ?? []) {
+      totalAssets += sub.amount;
+      const subAlloc = sub.allocations ?? asset.allocations;
+      for (const p of PERSON_IDS) {
+        const pct = subAlloc[p] ?? 0;
+        perPersonAsset[p] += (sub.amount * pct) / 100;
+      }
+    }
   }
 
   for (const t of scenario.transfers) {
@@ -148,8 +159,19 @@ export function computePersonBreakdown(scenario: Scenario, person: PersonId): Pe
   const perAsset = scenario.assets
     .map((a) => {
       const percent = a.allocations[person] ?? 0;
-      const amount = (a.totalValue * percent) / 100;
-      return { assetId: a.id, assetName: a.name, tone: a.tone, amount, percent };
+      const baseAmount = (a.totalValue * percent) / 100;
+      const subAmount = (a.subItems ?? []).reduce((acc, s) => {
+        const alloc = s.allocations ?? a.allocations;
+        const pct = alloc[person] ?? 0;
+        return acc + (s.amount * pct) / 100;
+      }, 0);
+      return {
+        assetId: a.id,
+        assetName: a.name,
+        tone: a.tone,
+        amount: baseAmount + subAmount,
+        percent,
+      };
     })
     .filter((row) => Math.abs(row.amount) > 0.5 || row.percent > 0.01);
 

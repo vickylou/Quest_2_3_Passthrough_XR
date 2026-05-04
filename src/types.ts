@@ -48,9 +48,12 @@ export interface Asset {
   /** Per-card colour tone. Drives card border and illustration tint. */
   tone?: AssetTone;
   /**
-   * Optional informational breakdown of what makes up `totalValue`. Display-only
-   * — balance math still uses `totalValue`. The remainder
-   * (`totalValue − sum(subItems)`) is shown as a "Base value" line.
+   * Additive sub-items (e.g. renovation costs that the heir still has to
+   * pour into the property). Each row is added on top of `totalValue` to
+   * give the asset's effective total. Each row carries its own per-sister
+   * percentage split — typically the heirs of the asset shoulder these
+   * costs in different proportions than the headline allocation. When a
+   * row has no `allocations`, it falls back to the parent asset's split.
    */
   subItems?: AssetSubItem[];
   /**
@@ -141,6 +144,9 @@ export interface AssetSubItem {
   id: string;
   label: string;
   amount: number;
+  /** Optional per-sister split for this sub-item. Falls back to the parent
+   *  asset's `allocations` when unset. */
+  allocations?: Allocation;
 }
 
 export interface Transfer {
