@@ -67,6 +67,26 @@ export interface Asset {
    * tweaks survive a refresh / redeploy / cloud-sync cycle.
    */
   helmhausSplit?: HelmhausSplitValues;
+  /**
+   * Only used on the agricultural-land asset. When set to 'building', the
+   * card renders a spots × value/spot panel and the per-sister allocation
+   * is in whole spots instead of percentages. `agriculturalSnapshot`
+   * preserves the agricultural-mode values so toggling back is
+   * lossless. `buildingConfig` is the source of truth in building mode
+   * (totalValue and allocations are derived from it).
+   */
+  landMode?: 'agricultural' | 'building';
+  agriculturalSnapshot?: {
+    totalValue: number;
+    allocations: Allocation;
+  };
+  buildingConfig?: BuildingConfig;
+}
+
+export interface BuildingConfig {
+  spots: number;
+  valuePerSpot: number;
+  perSister: Allocation;
 }
 
 export interface HelmhausSplitValues {
