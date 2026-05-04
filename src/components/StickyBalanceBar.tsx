@@ -48,12 +48,11 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
               total={balances.perPerson[p.id]}
               diff={balances.diff[p.id]}
               expanded={expanded}
-              onToggle={() => setExpanded((v) => !v)}
             />
           ))}
         </div>
 
-        {/* Goal / fairness strip */}
+        {/* Goal / fairness strip + ONE master toggle for all four breakdowns. */}
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
           <span>
             Goal{' '}
@@ -68,11 +67,14 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
             Fairness <span className="font-semibold text-slate-800">{score}/100</span>
           </span>
           <button
-            className="btn-ghost px-2 py-0.5 text-xs"
+            className="inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
           >
-            {expanded ? '▴ Hide breakdown' : '▾ Show breakdown'}
+            <span aria-hidden className="text-sm leading-none">
+              {expanded ? '▴' : '▾'}
+            </span>
+            <span>{expanded ? 'Hide breakdown' : 'Show breakdown'}</span>
           </button>
         </div>
       </div>
@@ -85,13 +87,11 @@ function SisterChip({
   total,
   diff,
   expanded,
-  onToggle,
 }: {
   personId: PersonId;
   total: number;
   diff: number;
   expanded: boolean;
-  onToggle: () => void;
 }) {
   const person = PEOPLE.find((p) => p.id === personId)!;
   const positive = diff >= 0;
@@ -103,22 +103,14 @@ function SisterChip({
       style={{ background: gradient }}
     >
       <div className="overflow-hidden rounded-[7px] bg-white">
-        {/* Two rows: label + toggle arrow on top, total + signed diff
-            inline below. Inlining the diff next to the total reads like
-            a price tag — "1.35 M  +173 K" — which is simpler at a glance
-            than a stacked pill below the total. */}
-        <button
-          className="flex w-full min-w-0 flex-col items-stretch px-1.5 py-1 text-left focus:outline-none focus:ring-2 focus:ring-slate-400 md:px-3 md:py-1.5"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          aria-controls={`chip-${personId}-detail`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 md:text-[10px]">
-              {person.name}
-            </span>
-            <span className="shrink-0 text-[10px] text-slate-400">{expanded ? '▴' : '▾'}</span>
-          </div>
+        {/* Display-only chip — the Show/Hide breakdown button below the
+            grid drives the expanded state for ALL four chips at once.
+            Per-chip toggles were redundant and the tiny per-chip arrows
+            were hard to spot. */}
+        <div className="flex flex-col px-1.5 py-1 md:px-3 md:py-1.5">
+          <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 md:text-[10px]">
+            {person.name}
+          </span>
           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
             <span className="truncate text-sm font-semibold tabular-nums text-slate-800 md:text-lg">
               {formatEuroCompact(total)}
@@ -131,7 +123,7 @@ function SisterChip({
               {formatSignedEuroCompact(diff)}
             </span>
           </div>
-        </button>
+        </div>
 
         {expanded && (
           <div
