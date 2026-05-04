@@ -35,19 +35,33 @@ const A = {
 const PACKAGE_TARGET = 150_000;
 
 interface Scales {
+  // editable totals (one per card)
+  egTotal: number;
+  setEgTotal: (n: number) => void;
   ogTotal: number;
   setOgTotal: (n: number) => void;
+  praxisFull: number;
+  setPraxisFull: (n: number) => void;
+  dgFull: number;
+  setDgFull: (n: number) => void;
+  lisaGarage: number;
+  setLisaGarage: (n: number) => void;
+  vickyGarage: number;
+  setVickyGarage: (n: number) => void;
   reset: () => void;
-  s_og: number;
+  // per-card scale factors (ratio of current card total ÷ appraisal total)
   s_eg: number;
-  s_pd: number;
-  egTotal: number;
+  s_og: number;
+  s_p: number;
+  s_d: number;
+  s_lg: number;
+  s_vg: number;
+  // derived OG sub-splits (Lisa / Vicky proportional to appraisal)
   ogLisa: number;
   ogVicky: number;
-  praxisFull: number;
   praxisHalf: number;
-  dgFull: number;
   dgHalf: number;
+  // derived sums
   package_: number;
   lisaTotal: number;
   vickyTotal: number;
@@ -69,46 +83,66 @@ const fmt = (n: number) =>
   });
 
 export function HelmhausSplit() {
+  const [egTotal, setEgTotal] = useState<number>(A.EG_TOTAL);
   const [ogTotal, setOgTotal] = useState<number>(A.OG_TOTAL);
+  const [praxisFull, setPraxisFull] = useState<number>(A.PRAXIS_FULL);
+  const [dgFull, setDgFull] = useState<number>(A.DG_FULL);
+  const [lisaGarage, setLisaGarage] = useState<number>(A.LISA_GARAGE);
+  const [vickyGarage, setVickyGarage] = useState<number>(A.VICKY_GARAGE);
 
   const scales: Scales = useMemo(() => {
+    const s_eg = egTotal / A.EG_TOTAL;
     const s_og = ogTotal / A.OG_TOTAL;
-    const s_eg = s_og;
-    const pdHalfBase = A.PRAXIS_HALF + A.DG_HALF;
-    const s_pd_raw = (PACKAGE_TARGET - A.OG_LISA * s_og) / pdHalfBase;
-    const s_pd = Math.max(0, s_pd_raw);
-    const egTotal = A.EG_TOTAL * s_eg;
-    const ogLisa = A.OG_LISA * s_og;
-    const ogVicky = A.OG_VICKY * s_og;
-    const praxisFull = A.PRAXIS_FULL * s_pd;
-    const praxisHalf = A.PRAXIS_HALF * s_pd;
-    const dgFull = A.DG_FULL * s_pd;
-    const dgHalf = A.DG_HALF * s_pd;
+    const s_p = praxisFull / A.PRAXIS_FULL;
+    const s_d = dgFull / A.DG_FULL;
+    const s_lg = lisaGarage / A.LISA_GARAGE;
+    const s_vg = vickyGarage / A.VICKY_GARAGE;
+    const ogLisa = ogTotal * (A.OG_LISA / A.OG_TOTAL);
+    const ogVicky = ogTotal * (A.OG_VICKY / A.OG_TOTAL);
+    const praxisHalf = praxisFull / 2;
+    const dgHalf = dgFull / 2;
     const package_ = praxisHalf + dgHalf + ogLisa;
     const lisaTotal =
-      egTotal + ogLisa + praxisFull + A.LISA_GARAGE + dgFull + A.ALLG_HALF;
-    const vickyTotal = ogVicky + A.VICKY_GARAGE + A.ALLG_HALF;
+      egTotal + ogLisa + praxisFull + lisaGarage + dgFull + A.ALLG_HALF;
+    const vickyTotal = ogVicky + vickyGarage + A.ALLG_HALF;
     const helmhausTotal = lisaTotal + vickyTotal;
     return {
+      egTotal,
+      setEgTotal,
       ogTotal,
       setOgTotal,
-      reset: () => setOgTotal(A.OG_TOTAL),
-      s_og,
+      praxisFull,
+      setPraxisFull,
+      dgFull,
+      setDgFull,
+      lisaGarage,
+      setLisaGarage,
+      vickyGarage,
+      setVickyGarage,
+      reset: () => {
+        setEgTotal(A.EG_TOTAL);
+        setOgTotal(A.OG_TOTAL);
+        setPraxisFull(A.PRAXIS_FULL);
+        setDgFull(A.DG_FULL);
+        setLisaGarage(A.LISA_GARAGE);
+        setVickyGarage(A.VICKY_GARAGE);
+      },
       s_eg,
-      s_pd,
-      egTotal,
+      s_og,
+      s_p,
+      s_d,
+      s_lg,
+      s_vg,
       ogLisa,
       ogVicky,
-      praxisFull,
       praxisHalf,
-      dgFull,
       dgHalf,
       package_,
       lisaTotal,
       vickyTotal,
       helmhausTotal,
     };
-  }, [ogTotal]);
+  }, [egTotal, ogTotal, praxisFull, dgFull, lisaGarage, vickyGarage]);
 
   return (
     <ScaleCtx.Provider value={scales}>
@@ -406,6 +440,33 @@ function FloorCard({
   );
 }
 
+function EditableTotal({
+  value,
+  onChange,
+  color = '#b45309',
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  color?: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">€</span>
+      <input
+        type="number"
+        step={1000}
+        inputMode="numeric"
+        className="field w-32 px-2 py-1 text-right text-base font-bold tabular-nums md:w-40 md:text-lg"
+        style={{ color }}
+        value={Math.round(value)}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        onFocus={(e) => e.currentTarget.select()}
+        title="Editable — Lisa- / Vicky-Gesamt aktualisieren sich automatisch"
+      />
+    </div>
+  );
+}
+
 function FloorImage({ src, alt }: { src: string; alt: string }) {
   return (
     <a href={src} target="_blank" rel="noopener noreferrer" className="block">
@@ -528,13 +589,14 @@ function ColorDot({ color, border }: { color: string; border: string }) {
 }
 
 function FloorEG() {
-  const { egTotal } = useScales();
+  const { egTotal, setEgTotal, s_eg } = useScales();
+  const m = (n: number) => n * s_eg;
   return (
     <FloorCard
       badge="EG · Erdgeschoss"
       badgeColor="#6a9a5a"
       title="Gesamtwert"
-      totalValue={fmt(egTotal)}
+      totalValue={<EditableTotal value={egTotal} onChange={setEgTotal} />}
       image="eg.jpg"
       imageAlt="EG mit allen Farben"
       colorLegend={
@@ -552,7 +614,7 @@ function FloorEG() {
         <SubExp
           label="Gebäude-Anteil EG"
           smallLabel="(Wohnung + Außen)"
-          value={fmt(250_400)}
+          value={fmt(m(250_400))}
         >
           <SubRow
             name={
@@ -561,7 +623,7 @@ function FloorEG() {
                 Wohnfläche · 103 m² (blau)
               </>
             }
-            value={fmt(238_000)}
+            value={fmt(m(238_000))}
           />
           <details className="helm-disclosure mt-2 rounded-md border border-green-600/40" style={{ background: '#e7f0e0' }}>
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs">
@@ -569,7 +631,7 @@ function FloorEG() {
                 Außen gesamt (grün) · ~365 m²
               </span>
               <span className="font-bold tabular-nums" style={{ color: '#3d5e2e' }}>
-                {fmt(12_400)}
+                {fmt(m(12_400))}
               </span>
             </summary>
             <div className="border-t border-dashed border-slate-200 px-3 py-2 text-xs">
@@ -580,7 +642,7 @@ function FloorEG() {
                     Terrasse SW · ~35 m²
                   </>
                 }
-                value={fmt(7_400)}
+                value={fmt(m(7_400))}
               />
               <SubRow
                 name={
@@ -589,7 +651,7 @@ function FloorEG() {
                     Garten EG · ~330 m²
                   </>
                 }
-                value={fmt(5_000)}
+                value={fmt(m(5_000))}
               />
             </div>
           </details>
@@ -597,21 +659,17 @@ function FloorEG() {
         <SubExp
           label="Boden-Anteil EG"
           smallLabel="(49,5 % vom Sachwert)"
-          value={fmt(287_950)}
+          value={fmt(m(287_950))}
         >
           <Calc>
-            EG-Sachwert: <strong>{fmt(250_400)}</strong> (Wohnung {fmt(238_000)} + Außen {fmt(12_400)})
+            EG-Sachwert: <strong>{fmt(m(250_400))}</strong> (Wohnung {fmt(m(238_000))} + Außen {fmt(m(12_400))})
             <br />
-            Anteil am gewichteten Sachwert: 250.400 / 505.800 = <strong>49,5 %</strong>
-            <br />
-            Boden-Anteil: 49,5 % × {fmt(581_600)} = <strong>{fmt(287_950)}</strong>
+            Boden-Anteil (49,5 % vom Sachwert): <strong>{fmt(m(287_950))}</strong>
           </Calc>
         </SubExp>
-        <SubExp label="Markt-Anteil EG" smallLabel="(49,5 % vom Markt)" value={fmt(63_540)}>
+        <SubExp label="Markt-Anteil EG" smallLabel="(49,5 % vom Markt)" value={fmt(m(63_540))}>
           <Calc>
-            EG-Anteil am gewichteten Sachwert: <strong>49,5 %</strong>
-            <br />
-            Markt-Anteil: 49,5 % × {fmt(128_341)} = <strong>{fmt(63_540)}</strong>
+            Markt-Anteil (49,5 %): <strong>{fmt(m(63_540))}</strong>
           </Calc>
         </SubExp>
       </PartySection>
@@ -626,21 +684,7 @@ function FloorOG() {
       badge="OG · Obergeschoss"
       badgeColor="#b07ac0"
       title="Gesamtwert"
-      totalValue={
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">€</span>
-          <input
-            type="number"
-            step={1000}
-            inputMode="numeric"
-            className="field w-32 px-2 py-1 text-right text-base font-bold tabular-nums text-amber-700 md:w-40 md:text-lg"
-            value={Math.round(ogTotal)}
-            onChange={(e) => setOgTotal(Number(e.target.value) || 0)}
-            onFocus={(e) => e.currentTarget.select()}
-            title="Editable — alle anderen Karten passen sich automatisch an"
-          />
-        </div>
-      }
+      totalValue={<EditableTotal value={ogTotal} onChange={setOgTotal} />}
       image="og.jpg"
       imageAlt="OG mit allen Farben"
       colorLegend={
@@ -780,14 +824,14 @@ function FloorOG() {
 }
 
 function FloorKGPraxis() {
-  const { praxisFull } = useScales();
+  const { praxisFull, setPraxisFull } = useScales();
   return (
     <FloorCard
       badge="KG · Praxis"
       badgeColor="#6a8aa6"
       title="Gesamtwert"
       subtitle="nur Praxis, ohne Garage"
-      totalValue={fmt(praxisFull)}
+      totalValue={<EditableTotal value={praxisFull} onChange={setPraxisFull} />}
       image="kg.jpg"
       imageAlt="KG gefärbt · Praxis blau"
       colorLegend={
@@ -839,13 +883,15 @@ function FloorKGPraxis() {
 }
 
 function FloorKGGarage() {
+  const { lisaGarage, setLisaGarage, vickyGarage, setVickyGarage } = useScales();
+  const garageTotal = lisaGarage + vickyGarage;
   return (
     <FloorCard
       badge="KG · Garage"
       badgeColor="#8a7a6a"
       title="Gesamtwert"
       subtitle="Garage halbiert + Lager Vicky"
-      totalValue={fmt(58_920)}
+      totalValue={fmt(garageTotal)}
       image="kg.jpg"
       imageAlt="KG · Garage halbiert + Lager"
       colorLegend={
@@ -954,7 +1000,7 @@ function FloorKGGarage() {
 }
 
 function FloorDG() {
-  const { dgFull } = useScales();
+  const { dgFull, setDgFull } = useScales();
   return (
     <div
       className="rounded-xl border p-4 shadow-sm"
@@ -971,9 +1017,7 @@ function FloorDG() {
           DG · Dachgeschoss
         </span>
         <h4 className="m-0 flex-1 text-sm font-medium text-slate-500">Gesamtwert</h4>
-        <div className="text-base font-bold tabular-nums md:text-lg" style={{ color: '#c98b3a' }}>
-          {fmt(dgFull)}
-        </div>
+        <EditableTotal value={dgFull} onChange={setDgFull} color="#c98b3a" />
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_280px]">
         <div className="space-y-2">
