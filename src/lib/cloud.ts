@@ -49,7 +49,7 @@ create table if not exists public.scenarios (
   author text not null,
   name text not null,
   meeting text,
-  visibility text not null check (visibility in ('public','shared')),
+  visibility text not null check (visibility in ('private','public','shared')),
   shared_with text[],
   status text not null default 'draft',
   payload jsonb not null,
@@ -314,7 +314,7 @@ interface CloudRow {
   author: Author;
   name: string;
   meeting: string | null;
-  visibility: 'public' | 'shared';
+  visibility: 'private' | 'public' | 'shared';
   shared_with: Author[] | null;
   status: string;
   payload: Scenario;
@@ -336,7 +336,9 @@ export async function pullScenarios(familyId: string): Promise<Scenario[]> {
 }
 
 export async function pushScenario(scenario: Scenario, familyId: string): Promise<void> {
-  if (scenario.visibility === 'private') return;
+  // Private scenarios are pushed too — RLS guarantees only the author can
+  // read them back. Cloud backup keeps drafts safe across browser wipes
+  // and devices without ever exposing them to other family members.
   const c = getClient();
   if (!c) return;
   const row: Partial<CloudRow> = {

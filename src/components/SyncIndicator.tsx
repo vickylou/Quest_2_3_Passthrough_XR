@@ -34,7 +34,7 @@ export function SyncIndicator() {
   }, [authed, viewerId, configured]);
 
   async function runPull() {
-    const { scenarios: merged, pulled } = await syncPull(scenarios);
+    const { scenarios: merged, pulled } = await syncPull(scenarios, viewerId);
     if (pulled > 0) {
       replaceAll({
         schemaVersion: 3,
