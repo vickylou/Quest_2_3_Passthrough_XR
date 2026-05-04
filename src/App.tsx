@@ -102,22 +102,24 @@ export default function App() {
           headerHidden ? '-translate-y-full' : 'translate-y-0'
         }`}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-1.5 md:px-6 md:py-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold tracking-tight md:text-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-1.5 px-2 py-1.5 md:gap-2 md:px-6 md:py-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xs font-semibold tracking-tight md:text-lg">
               Inheritance Calculator
             </h1>
             <p className="hidden text-xs text-slate-300 md:block">
               Lisa · Vicky · Jackie · Alexa — drafts per person, joint meetings, side-by-side comparisons.
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1">
             <SyncIndicator />
             <button
-              className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-white/40 md:px-3 md:py-1.5 md:text-sm"
+              className="rounded-md border border-slate-600 bg-slate-800 px-1.5 py-1 text-[11px] font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-white/40 md:px-3 md:py-1.5 md:text-sm"
               onClick={() => setShowCompare(true)}
+              aria-label="Compare scenarios"
             >
-              Compare
+              <span className="md:hidden">⇆</span>
+              <span className="hidden md:inline">Compare</span>
             </button>
             <AuthStatus />
           </div>
