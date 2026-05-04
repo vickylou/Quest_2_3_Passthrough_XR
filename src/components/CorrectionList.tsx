@@ -1,11 +1,12 @@
 import { PEOPLE, PersonId } from '../types';
-import { useStore } from '../state/store';
+import { useIsActiveReadOnly, useStore } from '../state/store';
 
 export function CorrectionList() {
   const corrections = useStore((s) => s.scenarios[s.activeId].corrections);
   const update = useStore((s) => s.updateCorrection);
   const remove = useStore((s) => s.removeCorrection);
   const add = useStore((s) => s.addCorrection);
+  const readOnly = useIsActiveReadOnly();
 
   return (
     <section className="card">
@@ -17,7 +18,7 @@ export function CorrectionList() {
             Active rows count toward the final balance.
           </p>
         </div>
-        <button onClick={add} className="btn">+ Correction</button>
+        {!readOnly && <button onClick={add} className="btn">+ Correction</button>}
       </div>
 
       <div className="space-y-1.5">
@@ -32,45 +33,51 @@ export function CorrectionList() {
             <input
               type="checkbox"
               checked={c.active}
-              className="col-span-1 h-5 w-5 rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+              className="col-span-1 h-5 w-5 rounded border-slate-300 text-slate-700 focus:ring-slate-500 disabled:opacity-60"
               onChange={(e) => update(c.id, (x) => ({ ...x, active: e.target.checked }))}
               title={c.active ? 'Active — counts in balance' : 'Inactive — ignored'}
+              disabled={readOnly}
             />
             <select
-              className="field col-span-3 py-1 text-sm md:col-span-2"
+              className="field col-span-3 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-2"
               value={c.person}
               onChange={(e) => update(c.id, (x) => ({ ...x, person: e.target.value as PersonId }))}
+              disabled={readOnly}
             >
               {PEOPLE.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
             <input
-              className="field col-span-5 py-1 text-sm md:col-span-6"
+              className="field col-span-5 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-6"
               placeholder="Note (e.g. free housing, parental support)"
               value={c.note}
               onChange={(e) => update(c.id, (x) => ({ ...x, note: e.target.value }))}
+              disabled={readOnly}
             />
             <div className="relative col-span-3 md:col-span-2">
               <input
-                className="field py-1 pr-5 text-right text-sm tabular-nums"
+                className="field py-1 pr-5 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
                 type="number"
                 inputMode="decimal"
                 value={c.amount}
                 onChange={(e) => update(c.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))}
+                disabled={readOnly}
               />
               <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
                 €
               </span>
             </div>
-            <button
-              onClick={() => remove(c.id)}
-              className="btn-ghost col-span-12 px-2 py-0.5 text-rose-600 hover:bg-rose-50 md:col-span-1"
-              title="Remove correction"
-              aria-label="Remove correction"
-            >
-              ×
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => remove(c.id)}
+                className="btn-ghost col-span-12 px-2 py-0.5 text-rose-600 hover:bg-rose-50 md:col-span-1"
+                title="Remove correction"
+                aria-label="Remove correction"
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
       </div>
