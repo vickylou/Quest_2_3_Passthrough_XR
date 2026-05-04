@@ -128,10 +128,7 @@ export function HelmhausSplit() {
         <TotalOverview />
       </Section>
       <Explanations />
-      <Section num={3} title="Was noch fehlt">
-        <OpenItems />
-      </Section>
-      <Section num={4} title="Ansichten vom Haus">
+      <Section num={3} title="Ansichten vom Haus">
         <Views />
       </Section>
       <DetailedTable />
@@ -1556,46 +1553,6 @@ function ExplainDrop({ title, children }: { title: string; children: React.React
       </summary>
       <div className="space-y-2 px-4 pb-4 text-xs leading-relaxed">{children}</div>
     </details>
-  );
-}
-
-function OpenItems() {
-  return (
-    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-      <p className="m-0 text-sm">
-        Folgende formelle Bewertungen sollten ergänzt werden, bevor eine endgültige Aufteilung
-        notariell festgelegt wird:
-      </p>
-      <ul className="ml-5 mt-2 list-disc space-y-1.5 text-sm">
-        <li>
-          <strong>Lisa schuldet Vicky noch ~{fmt(75_000)}</strong> — die {fmt(150_000)}{' '}
-          Vorauszahlung von Lisa an Vicky deckt das Paket (½ Praxis + ½ DG + 100 % OG-Lisa-Teil ={' '}
-          {fmt(225_620)}) nicht ganz ab; Restzahlung gehört in den 4-Geschwister-Ausgleich (z.B. via
-          Baugrund)
-        </li>
-        <li>
-          <strong>Offizielle Teilungsschätzung pro Etage</strong> — die Bereichswerte sind anteilig
-          aus der Gesamtschätzung abgeleitet (Funktion + Fläche), nicht eigenständig bewertet
-        </li>
-        <li>
-          <strong>Praxis-Bewertung</strong> als Gewerbeeinheit + Goodwill (Klientel, Inventar)
-        </li>
-        <li>
-          <strong>Nutzwertgutachten</strong> für Wohnungseigentums-Begründung
-        </li>
-        <li>
-          <strong>DG-Ausbau-Machbarkeit</strong> — falls späterer Ausbau gewünscht: Kosten/Nutzen,
-          Baurecht (Wertsteigerung ~{fmt(60_000)}–{fmt(100_000)}, derzeit nicht im Wert enthalten)
-        </li>
-        <li>
-          <strong>Eltern-Wohnrecht</strong> — Bewertung der Wertminderung pro Einheit
-        </li>
-        <li>
-          <strong>Garten-Vermessung</strong> — die m²-Schätzungen für grün/rosa/weiß sind aus dem
-          Plan abgeleitet, nicht vermessen
-        </li>
-      </ul>
-    </div>
   );
 }
 
