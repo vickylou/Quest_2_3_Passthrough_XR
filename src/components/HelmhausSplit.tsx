@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 /**
  * Detailed Helmhaus internal-split panel — replaces the free-text
@@ -179,9 +179,10 @@ export function HelmhausSplit() {
 }
 
 /**
- * Always-visible status panel pinned to the bottom-right of the viewport.
- * Shows the live Σ Helmhaus and Buyout-Paket vs. their targets so the user
- * can see where they're landing while editing values further up the panel.
+ * Always-visible status panel that follows the mouse cursor on desktop
+ * (so it's always near where the user is editing) and falls back to a
+ * fixed bottom-right pin on touch devices where there is no cursor.
+ * Shows the live Σ Helmhaus and Buyout-Paket vs. their targets.
  */
 function FloatingIndicators() {
   const { helmhausTotal, package_, reset } = useScales();
@@ -189,8 +190,38 @@ function FloatingIndicators() {
   const packDiff = package_ - PACKAGE_TARGET;
   const helmGood = Math.abs(helmDiff) < 50;
   const packGood = Math.abs(packDiff) < 50;
+
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      setCursor({ x: e.clientX, y: e.clientY });
+    }
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  // Box dimensions (approximate — used to keep it within the viewport).
+  const W = 250;
+  const H = 110;
+  const positionStyle: React.CSSProperties = cursor
+    ? (() => {
+        // Default offset: 18 px right + below the cursor. If that would
+        // overflow the viewport, flip to left/above.
+        let x = cursor.x + 18;
+        let y = cursor.y + 18;
+        if (x + W > window.innerWidth - 8) x = cursor.x - W - 18;
+        if (y + H > window.innerHeight - 8) y = cursor.y - H - 18;
+        x = Math.max(8, x);
+        y = Math.max(8, y);
+        return { left: x, top: y };
+      })()
+    : { right: 12, bottom: 12 };
+
   return (
-    <div className="pointer-events-none fixed bottom-3 right-3 z-50 max-w-[calc(100vw-1.5rem)] md:bottom-4 md:right-4">
+    <div
+      className="pointer-events-none fixed z-50 max-w-[calc(100vw-1rem)]"
+      style={positionStyle}
+    >
       <div className="pointer-events-auto rounded-lg border border-slate-300 bg-white/95 p-2.5 text-xs shadow-2xl backdrop-blur md:p-3">
         <div className="mb-1 flex items-center justify-between gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
