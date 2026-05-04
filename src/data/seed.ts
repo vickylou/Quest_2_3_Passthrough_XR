@@ -41,7 +41,6 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ vicky: 50, jackie: 50 }),
       imageKey: 'plot',
       tone: 'amber',
-      notes: 'Vicky & Jackie',
     },
     {
       id: BAUGRUND_2_ID,
@@ -50,7 +49,6 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ alexa: 100 }),
       imageKey: 'plot',
       tone: 'lime',
-      notes: 'Alexa, no house yet',
     },
     {
       id: CASH_ID,

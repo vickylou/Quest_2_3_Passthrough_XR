@@ -75,8 +75,8 @@ const CANONICAL_TONES: Record<string, AssetTone> = {
 const CANONICAL_NOTES: Record<string, string | undefined> = {
   [HELMHAUS_ID]: undefined,
   [WEBERHAUS_ID]: undefined,
-  [BAUGRUND_1_ID]: 'Vicky & Jackie',
-  [BAUGRUND_2_ID]: 'Alexa, no house yet',
+  [BAUGRUND_1_ID]: undefined,
+  [BAUGRUND_2_ID]: undefined,
   [CASH_ID]: 'From sold plot, after renovation',
   [LANDWIRTSCHAFT_ID]: '6 500 m² ≈ 40 €/m². Future upside if rezoned.',
 };
