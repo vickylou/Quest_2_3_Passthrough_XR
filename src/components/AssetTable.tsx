@@ -330,7 +330,7 @@ function AssetCard({
           </div>
 
           {(hasBreakdown || isHouse) && (
-            <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} readOnly={readOnly} />
+            <BreakdownPanel asset={asset} onChange={onChange} readOnly={readOnly} />
           )}
 
           {isHouse && asset.id === HELMHAUS_ID && (
@@ -993,17 +993,13 @@ function PersonShareCell({
 function BreakdownPanel({
   asset,
   onChange,
-  accent,
   readOnly,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
-  accent: string;
   readOnly: boolean;
 }) {
   const items = asset.subItems ?? [];
-  const subSum = items.reduce((acc, i) => acc + (i.amount ?? 0), 0);
-  const effectiveTotal = asset.totalValue + subSum;
 
   function ensureItems(): AssetSubItem[] {
     return asset.subItems ?? [];
@@ -1034,51 +1030,26 @@ function BreakdownPanel({
     onChange((a) => ({ ...a, subItems: ensureItems().filter((i) => i.id !== id) }));
   }
 
+  if (items.length === 0 && readOnly) return null;
+
   return (
-    <details
-      className="mt-2 rounded-md border bg-white"
-      style={{ borderColor: accent + '33' }}
-    >
-      <summary className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-slate-700">
-        ▸ Breakdown {items.length > 0 && <span className="text-slate-400">({items.length})</span>}
-      </summary>
-      <div className="border-t border-slate-200 p-2 text-xs">
-        <div className="mb-1.5 flex items-center justify-between rounded bg-slate-50 px-2 py-1">
-          <span className="text-slate-600">Base value</span>
-          <span className="tabular-nums text-slate-700">{formatEuro(asset.totalValue)}</span>
-        </div>
-        <p className="mb-1.5 text-[10px] italic text-slate-500">
-          Items below are added on top of the base value (e.g. renovation
-          costs the heir still has to put in). Each row carries its own
-          per-sister split — typically the heirs of the asset shoulder
-          these costs.
-        </p>
-        <div className="space-y-2">
-          {items.map((i) => (
-            <BreakdownItemRow
-              key={i.id}
-              item={i}
-              parentAllocations={asset.allocations}
-              onUpdate={updateItem}
-              onRemove={removeItem}
-              readOnly={readOnly}
-            />
-          ))}
-        </div>
-        <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs">
-          {!readOnly ? (
-            <button onClick={addItem} className="btn-ghost px-2 py-0.5 text-slate-600">
-              + Add component
-            </button>
-          ) : (
-            <span />
-          )}
-          <span className="font-medium tabular-nums text-slate-800">
-            Effective total {formatEuro(effectiveTotal)}
-          </span>
-        </div>
-      </div>
-    </details>
+    <div className="mt-2 space-y-2">
+      {items.map((i) => (
+        <BreakdownItemRow
+          key={i.id}
+          item={i}
+          parentAllocations={asset.allocations}
+          onUpdate={updateItem}
+          onRemove={removeItem}
+          readOnly={readOnly}
+        />
+      ))}
+      {!readOnly && (
+        <button onClick={addItem} className="btn-ghost px-2 py-0.5 text-xs text-slate-600">
+          + Add component
+        </button>
+      )}
+    </div>
   );
 }
 
