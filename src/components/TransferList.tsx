@@ -34,7 +34,7 @@ export function TransferList() {
           <div className="mb-3 flex items-start gap-3 md:block">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Direct payments</h2>
+                <h2 className="text-lg font-semibold">Direct payments to</h2>
                 {!readOnly && (
                   <button onClick={add} className="btn">
                     + Payment
@@ -42,9 +42,8 @@ export function TransferList() {
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Money flowing between people (equalisation payments, parental support, etc.).
-                Grouped by sister — each sister's section shows payments where she is the sender or
-                the receiver.
+                Grouped by recipient — each sister's section shows payments she received. Each row
+                still shows the sender (Lisa, Vicky, Jackie, Alexa, Mum, Dad, or Mum &amp; Dad).
               </p>
             </div>
             <div
@@ -65,15 +64,9 @@ export function TransferList() {
           ) : (
             <div className="space-y-1.5">
               {PEOPLE.map((p) => {
-                const personTransfers = transfers.filter(
-                  (t) => t.from === p.id || t.to === p.id
-                );
+                const personTransfers = transfers.filter((t) => t.to === p.id);
                 if (personTransfers.length === 0) return null;
-                const net = personTransfers.reduce((acc, t) => {
-                  if (t.to === p.id) return acc + t.amount;
-                  if (t.from === p.id) return acc - t.amount;
-                  return acc;
-                }, 0);
+                const incoming = personTransfers.reduce((acc, t) => acc + t.amount, 0);
                 return (
                   <PersonTransferGroup
                     key={p.id}
@@ -81,40 +74,13 @@ export function TransferList() {
                     personName={p.name}
                     colors={p.colors}
                     transfers={personTransfers}
-                    net={net}
+                    incoming={incoming}
                     onUpdate={update}
                     onRemove={remove}
                     readOnly={readOnly}
                   />
                 );
               })}
-              {/* Transfers that don't involve any sister (e.g. mum→dad, or
-                  intra-parent flows). Rare but render so they aren't lost. */}
-              {(() => {
-                const orphan = transfers.filter(
-                  (t) =>
-                    !PEOPLE.some((p) => t.from === p.id || t.to === p.id)
-                );
-                if (orphan.length === 0) return null;
-                return (
-                  <details className="rounded-md border border-slate-200 bg-white">
-                    <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-slate-700">
-                      Andere ({orphan.length})
-                    </summary>
-                    <div className="space-y-1.5 border-t border-slate-200 p-2">
-                      {orphan.map((t) => (
-                        <TransferRow
-                          key={t.id}
-                          transfer={t}
-                          onUpdate={update}
-                          onRemove={remove}
-                          readOnly={readOnly}
-                        />
-                      ))}
-                    </div>
-                  </details>
-                );
-              })()}
             </div>
           )}
         </div>
@@ -141,7 +107,7 @@ function PersonTransferGroup({
   personName,
   colors,
   transfers,
-  net,
+  incoming,
   onUpdate,
   onRemove,
   readOnly,
@@ -150,16 +116,18 @@ function PersonTransferGroup({
   personName: string;
   colors: { primary: string; accent: string };
   transfers: Transfer[];
-  net: number;
+  incoming: number;
   onUpdate: (id: string, mut: (t: Transfer) => Transfer) => void;
   onRemove: (id: string) => void;
   readOnly: boolean;
 }) {
   void personId;
   const gradient = `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`;
-  const positive = net >= 0;
   return (
-    <details className="overflow-hidden rounded-md border-2 bg-white" style={{ borderColor: colors.primary }}>
+    <details
+      className="overflow-hidden rounded-md border-2 bg-white"
+      style={{ borderColor: colors.primary }}
+    >
       <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
         <span className="flex items-center gap-2">
           <span
@@ -170,13 +138,8 @@ function PersonTransferGroup({
           <strong className="text-slate-800">{personName}</strong>
           <span className="text-xs text-slate-500">({transfers.length})</span>
         </span>
-        <span
-          className={`text-xs font-semibold tabular-nums ${
-            positive ? 'text-emerald-700' : 'text-rose-700'
-          }`}
-        >
-          {positive ? '+' : '−'}
-          {fmtEuro(Math.abs(net))}
+        <span className="text-xs font-semibold tabular-nums text-emerald-700">
+          +{fmtEuro(incoming)}
         </span>
       </summary>
       <div className="space-y-1.5 border-t border-slate-200 p-2">
