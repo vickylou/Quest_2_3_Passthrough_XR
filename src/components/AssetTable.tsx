@@ -13,15 +13,19 @@ import { formatEuro, formatEuroCompact, formatPercent, uid } from '../lib/format
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
 import { HelmhausSplit } from './HelmhausSplit';
+import { MoveButtons } from './MoveButtons';
 import { toneStyle } from '../lib/tones';
 import { HELMHAUS_ID, LANDWIRTSCHAFT_ID, WEBERHAUS_ID } from '../data/seed';
 import { isCanonicalAsset } from '../state/persistence';
 
 const HOUSE_IDS = new Set<string>([HELMHAUS_ID, WEBERHAUS_ID]);
 
+const DEFAULT_AGRICULTURAL_VALUE_PER_SPOT = 43_333;
+const DEFAULT_BUILDING_VALUE_PER_SPOT = 750_000;
+
 const DEFAULT_BUILDING_CONFIG: BuildingConfig = {
   spots: 6,
-  valuePerSpot: 750_000,
+  valuePerSpot: DEFAULT_AGRICULTURAL_VALUE_PER_SPOT,
   perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
 };
 
@@ -33,42 +37,46 @@ function deriveAllocationsFromConfig(config: BuildingConfig): Allocation {
   }, { lisa: 0, vicky: 0, jackie: 0, alexa: 0 } as Allocation);
 }
 
+function defaultValueForMode(mode: 'agricultural' | 'building'): number {
+  return mode === 'agricultural'
+    ? DEFAULT_AGRICULTURAL_VALUE_PER_SPOT
+    : DEFAULT_BUILDING_VALUE_PER_SPOT;
+}
+
 /**
- * Toggle the agricultural-land asset between its two modes:
- *   - 'agricultural': free-form totalValue + percentage allocations
- *   - 'building':     spots × valuePerSpot, whole-number spots per sister
- *
- * On agri→building we snapshot the current totalValue/allocations so the
- * agricultural numbers survive a round-trip even if the user edits in
- * building mode. On building→agri we restore from that snapshot when
- * available, otherwise we leave the current numbers as-is.
+ * Toggle the agricultural-land asset's mode. The land is always divided into
+ * whole plots; only the value-per-plot changes between modes (agricultural
+ * vs. building-property zoning). Each mode's most recent value-per-plot is
+ * remembered on the asset so toggling round-trips both edits.
  */
 function toggledLandAsset(asset: Asset): Asset {
   const currentMode = asset.landMode ?? 'agricultural';
-  if (currentMode === 'agricultural') {
-    const snapshot = {
-      totalValue: asset.totalValue,
-      allocations: { ...asset.allocations },
-    };
-    const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
-    return {
-      ...asset,
-      landMode: 'building',
-      agriculturalSnapshot: snapshot,
-      buildingConfig: config,
-      totalValue: config.spots * config.valuePerSpot,
-      allocations: deriveAllocationsFromConfig(config),
-    };
-  }
-  if (asset.agriculturalSnapshot) {
-    return {
-      ...asset,
-      landMode: 'agricultural',
-      totalValue: asset.agriculturalSnapshot.totalValue,
-      allocations: { ...asset.agriculturalSnapshot.allocations },
-    };
-  }
-  return { ...asset, landMode: 'agricultural' };
+  const nextMode: 'agricultural' | 'building' =
+    currentMode === 'agricultural' ? 'building' : 'agricultural';
+  const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+
+  // Save what we were just showing into the leaving-mode's slot, then load
+  // (or default) the entering-mode's slot.
+  const savedFromCurrent =
+    currentMode === 'agricultural'
+      ? { agriculturalValuePerSpot: config.valuePerSpot }
+      : { buildingValuePerSpot: config.valuePerSpot };
+
+  const incoming =
+    nextMode === 'agricultural'
+      ? asset.agriculturalValuePerSpot
+      : asset.buildingValuePerSpot;
+  const nextValuePerSpot = incoming ?? defaultValueForMode(nextMode);
+
+  const nextConfig: BuildingConfig = { ...config, valuePerSpot: nextValuePerSpot };
+  return {
+    ...asset,
+    ...savedFromCurrent,
+    landMode: nextMode,
+    buildingConfig: nextConfig,
+    totalValue: nextConfig.spots * nextConfig.valuePerSpot,
+    allocations: deriveAllocationsFromConfig(nextConfig),
+  };
 }
 
 export function AssetTable() {
@@ -76,6 +84,7 @@ export function AssetTable() {
   const updateAsset = useStore((s) => s.updateAsset);
   const removeAsset = useStore((s) => s.removeAsset);
   const addAsset = useStore((s) => s.addAsset);
+  const moveAsset = useStore((s) => s.moveAsset);
   const readOnly = useIsActiveReadOnly();
 
   return (
@@ -88,12 +97,16 @@ export function AssetTable() {
       </div>
 
       <div className="space-y-3" data-pdf-capture="asset-list">
-        {active.assets.map((asset) => (
+        {active.assets.map((asset, index) => (
           <AssetCard
             key={asset.id}
             asset={asset}
             onChange={(mut) => updateAsset(asset.id, mut)}
             onRemove={() => removeAsset(asset.id)}
+            onMoveUp={() => moveAsset(asset.id, 'up')}
+            onMoveDown={() => moveAsset(asset.id, 'down')}
+            canMoveUp={index > 0}
+            canMoveDown={index < active.assets.length - 1}
             isHouse={HOUSE_IDS.has(asset.id)}
             readOnly={readOnly}
           />
@@ -107,12 +120,20 @@ function AssetCard({
   asset,
   onChange,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   isHouse,
   readOnly,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   isHouse: boolean;
   readOnly: boolean;
 }) {
@@ -122,7 +143,6 @@ function AssetCard({
   const hasBreakdown = (asset.subItems?.length ?? 0) > 0;
   const isLand = asset.id === LANDWIRTSCHAFT_ID;
   const landMode: 'agricultural' | 'building' = asset.landMode ?? 'agricultural';
-  const inBuildingMode = isLand && landMode === 'building';
 
   return (
     <article
@@ -153,15 +173,26 @@ function AssetCard({
                     <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
                   )}
                 </div>
-                {!readOnly && !isCanonicalAsset(asset.id) && (
-                  <button
-                    onClick={onRemove}
-                    className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
-                    title="Remove asset"
-                    aria-label="Remove asset"
-                  >
-                    ×
-                  </button>
+                {!readOnly && (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <MoveButtons
+                      onUp={onMoveUp}
+                      onDown={onMoveDown}
+                      canUp={canMoveUp}
+                      canDown={canMoveDown}
+                      label="asset"
+                    />
+                    {!isCanonicalAsset(asset.id) && (
+                      <button
+                        onClick={onRemove}
+                        className="btn-ghost px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+                        title="Remove asset"
+                        aria-label="Remove asset"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -169,7 +200,7 @@ function AssetCard({
                 value={asset.totalValue}
                 onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
                 readOnly={readOnly}
-                derived={inBuildingMode}
+                derived={isLand}
                 sum={sum}
                 sumOff={sumOff}
               />
@@ -202,12 +233,13 @@ function AssetCard({
           )}
 
           <div className="mt-3">
-            {inBuildingMode ? (
-              <BuildingLandPanel
+            {isLand ? (
+              <LandPlotsPanel
                 asset={asset}
                 onChange={onChange}
                 readOnly={readOnly}
                 valueColor={tone.pillText}
+                mode={landMode}
               />
             ) : (
               <PercentGrid
@@ -428,16 +460,18 @@ function LandModeToggle({
   );
 }
 
-function BuildingLandPanel({
+function LandPlotsPanel({
   asset,
   onChange,
   readOnly,
   valueColor,
+  mode,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   readOnly: boolean;
   valueColor: string;
+  mode: 'agricultural' | 'building';
 }) {
   const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
   const allocatedSpots = PERSON_IDS.reduce(
@@ -450,9 +484,14 @@ function BuildingLandPanel({
   function updateConfig(mut: (c: BuildingConfig) => BuildingConfig) {
     onChange((a) => {
       const newConfig = mut(a.buildingConfig ?? DEFAULT_BUILDING_CONFIG);
+      // Mirror the live value-per-spot into the current mode's saved slot
+      // so toggling away and back doesn't lose the user's edit.
+      const savedKey =
+        mode === 'agricultural' ? 'agriculturalValuePerSpot' : 'buildingValuePerSpot';
       return {
         ...a,
         buildingConfig: newConfig,
+        [savedKey]: newConfig.valuePerSpot,
         totalValue: newConfig.spots * newConfig.valuePerSpot,
         allocations: deriveAllocationsFromConfig(newConfig),
       };

@@ -56,14 +56,53 @@ interface StoreState extends PersistedState {
   addAsset: () => void;
   updateAsset: (id: string, mut: (a: Asset) => Asset) => void;
   removeAsset: (id: string) => void;
+  moveAsset: (id: string, direction: 'up' | 'down') => void;
   // transfers
   addTransfer: (to?: PersonId) => void;
   updateTransfer: (id: string, mut: (t: Transfer) => Transfer) => void;
   removeTransfer: (id: string) => void;
+  moveTransfer: (id: string, direction: 'up' | 'down') => void;
   // corrections
   addCorrection: (person?: PersonId) => void;
   updateCorrection: (id: string, mut: (c: Correction) => Correction) => void;
   removeCorrection: (id: string) => void;
+  moveCorrection: (id: string, direction: 'up' | 'down') => void;
+}
+
+/**
+ * Swap the item at `id` with its sibling — the previous or next item that
+ * matches `peerOf` (used to reorder within a sister's group). Returns the
+ * original array unchanged if the item is already at the edge of its peers.
+ */
+function swapWithPeer<T extends { id: string }>(
+  items: T[],
+  id: string,
+  direction: 'up' | 'down',
+  peerOf: (item: T) => string
+): T[] {
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx < 0) return items;
+  const peerKey = peerOf(items[idx]);
+  let neighbour = -1;
+  if (direction === 'up') {
+    for (let i = idx - 1; i >= 0; i--) {
+      if (peerOf(items[i]) === peerKey) {
+        neighbour = i;
+        break;
+      }
+    }
+  } else {
+    for (let i = idx + 1; i < items.length; i++) {
+      if (peerOf(items[i]) === peerKey) {
+        neighbour = i;
+        break;
+      }
+    }
+  }
+  if (neighbour < 0) return items;
+  const next = items.slice();
+  [next[idx], next[neighbour]] = [next[neighbour], next[idx]];
+  return next;
 }
 
 function persistAndReturn<T extends PersistedState>(s: T): T {
@@ -405,6 +444,13 @@ export const useStore = create<StoreState>()((set, get) => ({
       assets: s.assets.filter((a) => a.id !== id),
     })),
 
+  moveAsset: (id, direction) =>
+    get().updateActive((s) => ({
+      ...s,
+      // All assets are peers — swap with the immediate neighbour.
+      assets: swapWithPeer(s.assets, id, direction, () => 'all'),
+    })),
+
   addTransfer: (to?: PersonId) =>
     get().updateActive((s) => ({
       ...s,
@@ -416,6 +462,7 @@ export const useStore = create<StoreState>()((set, get) => ({
           from: 'mum_and_dad',
           to: to ?? 'vicky',
           amount: 0,
+          active: true,
         },
       ],
     })),
@@ -430,6 +477,14 @@ export const useStore = create<StoreState>()((set, get) => ({
     get().updateActive((s) => ({
       ...s,
       transfers: s.transfers.filter((t) => t.id !== id),
+    })),
+
+  moveTransfer: (id, direction) =>
+    get().updateActive((s) => ({
+      ...s,
+      // Reorder within the recipient's group — swap with the previous/next
+      // payment that goes to the same sister.
+      transfers: swapWithPeer(s.transfers, id, direction, (t) => t.to),
     })),
 
   addCorrection: (person?: PersonId) =>
@@ -457,6 +512,13 @@ export const useStore = create<StoreState>()((set, get) => ({
     get().updateActive((s) => ({
       ...s,
       corrections: s.corrections.filter((c) => c.id !== id),
+    })),
+
+  moveCorrection: (id, direction) =>
+    get().updateActive((s) => ({
+      ...s,
+      // Reorder within the same person's group.
+      corrections: swapWithPeer(s.corrections, id, direction, (c) => c.person),
     })),
 }));
 

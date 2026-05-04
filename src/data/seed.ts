@@ -62,17 +62,19 @@ export function defaultAssets(): Asset[] {
     {
       id: LANDWIRTSCHAFT_ID,
       name: 'Agricultural land',
-      totalValue: 260_000,
-      allocations: alloc({ lisa: 42, vicky: 42, jackie: 16 }),
+      totalValue: 6 * 43_333,
+      allocations: alloc({}),
       imageKey: 'field',
       tone: 'orange',
       notes: '6 500 m² ≈ 40 €/m². Future upside if rezoned.',
       landMode: 'agricultural',
       buildingConfig: {
         spots: 6,
-        valuePerSpot: 750_000,
+        valuePerSpot: 43_333,
         perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
       },
+      agriculturalValuePerSpot: 43_333,
+      buildingValuePerSpot: 750_000,
     },
   ];
 }
