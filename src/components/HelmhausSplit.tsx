@@ -162,9 +162,9 @@ export function HelmhausSplit() {
         <Legend />
         <FloorEG />
         <FloorOG />
+        <FloorDG />
         <FloorKGPraxis />
         <FloorKGGarage />
-        <FloorDG />
         <TotalOverview />
       </Section>
       <Explanations />
