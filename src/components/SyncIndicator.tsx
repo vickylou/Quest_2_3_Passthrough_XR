@@ -70,17 +70,18 @@ export function SyncIndicator() {
   return (
     <>
       <button
-        className="btn flex items-center gap-1"
+        className="inline-flex items-center gap-1 rounded-md border border-slate-600 bg-slate-800 px-1.5 py-1 text-[11px] font-medium text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-white/40 md:px-3 md:py-1.5 md:text-sm"
         onClick={runPull}
-        title="Pull the latest scenarios shared by the family"
+        title={`${label} — tap to pull the latest scenarios shared by the family`}
+        aria-label={label}
       >
         <span className={statusDot(status)}>●</span>
-        <span className="hidden sm:inline">{label}</span>
-        <span className="sm:hidden">↻</span>
+        <span className="hidden md:inline">{label}</span>
+        <span className="md:hidden">↻</span>
       </button>
       {!isPreconfigured() && (
         <button
-          className="btn-ghost px-2 py-0.5 text-xs"
+          className="btn-ghost px-1.5 py-0.5 text-xs text-white hover:bg-slate-700"
           onClick={() => setShowSetup(true)}
           title="Cloud sync settings"
         >

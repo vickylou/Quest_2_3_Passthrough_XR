@@ -1,5 +1,16 @@
-import { Author, PersistedState, Scenario } from '../types';
-import { blankScenario, v0Scenario, v1Scenario, v2Scenario } from '../data/seed';
+import { Author, AssetTone, PersistedState, Scenario } from '../types';
+import {
+  BAUGRUND_1_ID,
+  BAUGRUND_2_ID,
+  CASH_ID,
+  HELMHAUS_ID,
+  LANDWIRTSCHAFT_ID,
+  WEBERHAUS_ID,
+  blankScenario,
+  v0Scenario,
+  v1Scenario,
+  v2Scenario,
+} from '../data/seed';
 
 const STORAGE_KEY = 'inheritance.v3';
 const LEGACY_KEYS = ['inheritance.v2', 'inheritance.v1'];
@@ -20,7 +31,7 @@ export function loadState(): PersistedState {
           parsed.activeId = Object.keys(parsed.scenarios)[0];
         }
         if (!parsed.viewerId) parsed.viewerId = 'lisa';
-        return claimOwnPrivateScenarios(parsed);
+        return ensureCanonicalTones(claimOwnPrivateScenarios(parsed));
       }
     }
     // Legacy: lift older schemas into the new shape so users don't lose work.
@@ -28,7 +39,7 @@ export function loadState(): PersistedState {
       const legacy = localStorage.getItem(key);
       if (!legacy) continue;
       try {
-        return claimOwnPrivateScenarios(migrateLegacy(JSON.parse(legacy)));
+        return ensureCanonicalTones(claimOwnPrivateScenarios(migrateLegacy(JSON.parse(legacy))));
       } catch {
         /* try next key */
       }
@@ -37,6 +48,46 @@ export function loadState(): PersistedState {
   } catch {
     return defaultState();
   }
+}
+
+/**
+ * Restore the canonical colour tone on the six seed assets (Helmhaus → sky,
+ * Weberhaus → rose, etc.) for any scenario that was created or migrated
+ * before the tone field existed, or where it was somehow set to 'slate'
+ * (the no-colour default). Runs on every load so older local drafts and
+ * any cloud-pulled rows from older versions both pick up the colours.
+ */
+const CANONICAL_TONES: Record<string, AssetTone> = {
+  [HELMHAUS_ID]: 'sky',
+  [WEBERHAUS_ID]: 'rose',
+  [BAUGRUND_1_ID]: 'amber',
+  [BAUGRUND_2_ID]: 'lime',
+  [CASH_ID]: 'emerald',
+  [LANDWIRTSCHAFT_ID]: 'orange',
+};
+
+function ensureCanonicalTones(state: PersistedState): PersistedState {
+  let touched = false;
+  const next: Record<string, Scenario> = {};
+  for (const [id, sc] of Object.entries(state.scenarios)) {
+    let scTouched = false;
+    const newAssets = sc.assets.map((a) => {
+      const canonical = CANONICAL_TONES[a.id];
+      if (canonical && (!a.tone || a.tone === 'slate')) {
+        scTouched = true;
+        return { ...a, tone: canonical };
+      }
+      return a;
+    });
+    if (scTouched) {
+      next[id] = { ...sc, assets: newAssets };
+      touched = true;
+    } else {
+      next[id] = sc;
+    }
+  }
+  if (!touched) return state;
+  return { ...state, scenarios: next };
 }
 
 /**

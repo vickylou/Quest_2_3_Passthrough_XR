@@ -81,8 +81,8 @@ export function ScenarioBar() {
         onSwitch={switchTab}
       />
 
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="w-full min-w-0 flex-1 sm:w-auto sm:min-w-[200px]">
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="min-w-0 sm:flex-1 sm:min-w-[200px]">
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Active scenario
           </label>
