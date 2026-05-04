@@ -27,6 +27,22 @@ const DEFAULT_BUILDING_EUR_PER_M2 = 692;
 
 const ZERO_PER_SISTER: Allocation = { lisa: 0, vicky: 0, jackie: 0, alexa: 0 };
 
+/**
+ * Always returns a fully-populated Allocation. Older saved snapshots may
+ * have a missing or partial `perSister` map (e.g. when the field was added
+ * after the user's data was already on disk); spreading those into a new
+ * object would leave some sisters as `undefined` and propagate NaN through
+ * the balance calculation.
+ */
+function normalizePerSister(input: Partial<Allocation> | undefined): Allocation {
+  return {
+    lisa: Number.isFinite(input?.lisa) ? (input!.lisa as number) : 0,
+    vicky: Number.isFinite(input?.vicky) ? (input!.vicky as number) : 0,
+    jackie: Number.isFinite(input?.jackie) ? (input!.jackie as number) : 0,
+    alexa: Number.isFinite(input?.alexa) ? (input!.alexa as number) : 0,
+  };
+}
+
 const DEFAULT_AGRI_METRICS: LandSpotMetrics = {
   totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
@@ -48,8 +64,9 @@ const DEFAULT_BUILDING_CONFIG: BuildingConfig = {
 
 function deriveAllocationsFromConfig(config: BuildingConfig): Allocation {
   const total = config.spots > 0 ? config.spots : 1;
+  const ps = normalizePerSister(config.perSister);
   return PERSON_IDS.reduce((acc, p) => {
-    acc[p] = (config.perSister[p] / total) * 100;
+    acc[p] = (ps[p] / total) * 100;
     return acc;
   }, { lisa: 0, vicky: 0, jackie: 0, alexa: 0 } as Allocation);
 }
@@ -80,7 +97,7 @@ function metricsFromConfig(config: BuildingConfig): LandSpotMetrics {
   return {
     totalSquareMeters: total,
     eurosPerSquareMeter: eurPerM2,
-    perSister: { ...config.perSister },
+    perSister: normalizePerSister(config.perSister),
   };
 }
 
@@ -122,8 +139,9 @@ function toggledLandAsset(asset: Asset): Asset {
     eurosPerSquareMeter: nextMetrics.eurosPerSquareMeter,
     // Per-sister spot allocation also swaps with the mode — the user can
     // give all 6 plots to one sister in agri mode but split them four
-    // ways in building mode, and the toggle remembers both.
-    perSister: { ...nextMetrics.perSister },
+    // ways in building mode, and the toggle remembers both. Old saved
+    // snapshots may lack `perSister` entirely, so normalise it here.
+    perSister: normalizePerSister(nextMetrics.perSister),
   };
   return {
     ...asset,
