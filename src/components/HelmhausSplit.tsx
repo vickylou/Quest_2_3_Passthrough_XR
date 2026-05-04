@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 
 /**
  * Detailed Helmhaus internal-split panel — replaces the free-text
@@ -153,6 +153,7 @@ export function HelmhausSplit() {
   return (
     <ScaleCtx.Provider value={scales}>
     <div className="space-y-4 text-sm leading-relaxed text-slate-800">
+      <StickyBilanz />
       <Header />
       <Hero />
       <Section num={1} title="Bereichs-Schätzung">
@@ -173,59 +174,43 @@ export function HelmhausSplit() {
       </Section>
       <DetailedTable />
     </div>
-    <FloatingIndicators />
     </ScaleCtx.Provider>
   );
 }
 
 /**
- * Always-visible status panel that follows the mouse cursor on desktop
- * (so it's always near where the user is editing) and falls back to a
- * fixed bottom-right pin on touch devices where there is no cursor.
- * Shows the live Σ Helmhaus and Buyout-Paket vs. their targets.
+ * Sticky banner that pins itself just under the app's sticky balance bar
+ * (the indigo sister chips up top). Stays visible while the user scrolls
+ * through the Helmhaus split panel, so the live Σ and Buyout-Paket
+ * status are always in sight while editing values further down.
  */
-function FloatingIndicators() {
+function StickyBilanz() {
   const { helmhausTotal, package_, reset } = useScales();
   const helmDiff = helmhausTotal - A.HELMHAUS_TOTAL;
   const packDiff = package_ - PACKAGE_TARGET;
   const helmGood = Math.abs(helmDiff) < 50;
   const packGood = Math.abs(packDiff) < 50;
-
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      setCursor({ x: e.clientX, y: e.clientY });
-    }
-    window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
-  }, []);
-
-  // Box dimensions (approximate — used to keep it within the viewport).
-  const W = 250;
-  const H = 110;
-  const positionStyle: React.CSSProperties = cursor
-    ? (() => {
-        // Default offset: 18 px right + below the cursor. If that would
-        // overflow the viewport, flip to left/above.
-        let x = cursor.x + 18;
-        let y = cursor.y + 18;
-        if (x + W > window.innerWidth - 8) x = cursor.x - W - 18;
-        if (y + H > window.innerHeight - 8) y = cursor.y - H - 18;
-        x = Math.max(8, x);
-        y = Math.max(8, y);
-        return { left: x, top: y };
-      })()
-    : { right: 12, bottom: 12 };
-
   return (
     <div
-      className="pointer-events-none fixed z-50 max-w-[calc(100vw-1rem)]"
-      style={positionStyle}
+      className="sticky z-30 -mx-3 border-y border-amber-300 bg-amber-50/95 px-3 py-2 shadow-sm backdrop-blur md:-mx-4 md:px-4"
+      style={{ top: '120px' }}
     >
-      <div className="pointer-events-auto rounded-lg border border-slate-300 bg-white/95 p-2.5 text-xs shadow-2xl backdrop-blur md:p-3">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Helmhaus-Bilanz
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+          Helmhaus-Bilanz
+        </span>
+        <div className="flex flex-wrap items-center gap-3 tabular-nums">
+          <span>
+            Σ <strong>{fmt(helmhausTotal)}</strong>{' '}
+            <span className={helmGood ? 'text-emerald-700' : 'text-rose-700'}>
+              {helmGood ? '✓' : `${helmDiff >= 0 ? '+' : ''}${fmt(helmDiff)}`}
+            </span>
+          </span>
+          <span>
+            Buy <strong>{fmt(package_)}</strong>{' '}
+            <span className={packGood ? 'text-emerald-700' : 'text-rose-700'}>
+              {packGood ? '✓' : `${packDiff >= 0 ? '+' : ''}${fmt(packDiff)}`}
+            </span>
           </span>
           <button
             type="button"
@@ -235,25 +220,9 @@ function FloatingIndicators() {
             ↺ Reset
           </button>
         </div>
-        <div className="space-y-0.5 tabular-nums">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500">Σ</span>
-            <strong className="flex-1 text-right">{fmt(helmhausTotal)}</strong>
-            <span className={helmGood ? 'text-emerald-700' : 'text-rose-700'}>
-              {helmGood ? '✓' : `${helmDiff >= 0 ? '+' : ''}${fmt(helmDiff)}`}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500">Buy</span>
-            <strong className="flex-1 text-right">{fmt(package_)}</strong>
-            <span className={packGood ? 'text-emerald-700' : 'text-rose-700'}>
-              {packGood ? '✓' : `${packDiff >= 0 ? '+' : ''}${fmt(packDiff)}`}
-            </span>
-          </div>
-        </div>
-        <div className="mt-1 text-[10px] text-slate-400">
-          Ziel Σ {fmt(A.HELMHAUS_TOTAL)} · Buy {fmt(PACKAGE_TARGET)}
-        </div>
+      </div>
+      <div className="text-[10px] text-slate-500">
+        Ziel Σ {fmt(A.HELMHAUS_TOTAL)} · Buy {fmt(PACKAGE_TARGET)}
       </div>
     </div>
   );
