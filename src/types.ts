@@ -80,6 +80,12 @@ export interface Asset {
    */
   landMode?: 'agricultural' | 'building';
   buildingConfig?: BuildingConfig;
+  /** Per-mode metrics — saved when leaving a mode so toggling restores both
+   *  m²-per-spot and €/m² exactly as the user last saw them. */
+  agriculturalSpotMetrics?: LandSpotMetrics;
+  buildingSpotMetrics?: LandSpotMetrics;
+  /** @deprecated Pre-metrics single-value snapshots. Read on first load if
+   *  metrics are missing, then never written again. */
   agriculturalValuePerSpot?: number;
   buildingValuePerSpot?: number;
   /** @deprecated Pre-spots-everywhere snapshot. Ignored by the UI. */
@@ -91,8 +97,25 @@ export interface Asset {
 
 export interface BuildingConfig {
   spots: number;
+  /**
+   * Authoritative price for one plot. Derived from
+   * `squareMetersPerSpot × eurosPerSquareMeter` when those fields are
+   * present (the UI always keeps it in sync with the metrics). Older saved
+   * data without metrics still works — the value is read directly.
+   */
   valuePerSpot: number;
+  /** Physical area of a single plot, in m². */
+  squareMetersPerSpot?: number;
+  /** Price per m² in the currently-active land mode. */
+  eurosPerSquareMeter?: number;
   perSister: Allocation;
+}
+
+/** Per-mode snapshot of the two plot metrics so toggling agri↔building
+ *  round-trips both inputs without loss. */
+export interface LandSpotMetrics {
+  squareMetersPerSpot: number;
+  eurosPerSquareMeter: number;
 }
 
 export interface HelmhausSplitValues {

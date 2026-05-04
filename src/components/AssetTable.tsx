@@ -4,6 +4,7 @@ import {
   Asset,
   AssetSubItem,
   BuildingConfig,
+  LandSpotMetrics,
   PERSON_IDS,
   PEOPLE,
   PersonId,
@@ -20,12 +21,24 @@ import { isCanonicalAsset } from '../state/persistence';
 
 const HOUSE_IDS = new Set<string>([HELMHAUS_ID, WEBERHAUS_ID]);
 
-const DEFAULT_AGRICULTURAL_VALUE_PER_SPOT = 43_333;
-const DEFAULT_BUILDING_VALUE_PER_SPOT = 750_000;
+const DEFAULT_SQUARE_METERS_PER_SPOT = 1083;
+const DEFAULT_AGRICULTURAL_EUR_PER_M2 = 40;
+const DEFAULT_BUILDING_EUR_PER_M2 = 692;
+
+const DEFAULT_AGRI_METRICS: LandSpotMetrics = {
+  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
+};
+const DEFAULT_BUILDING_METRICS: LandSpotMetrics = {
+  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  eurosPerSquareMeter: DEFAULT_BUILDING_EUR_PER_M2,
+};
 
 const DEFAULT_BUILDING_CONFIG: BuildingConfig = {
   spots: 6,
-  valuePerSpot: DEFAULT_AGRICULTURAL_VALUE_PER_SPOT,
+  valuePerSpot: DEFAULT_SQUARE_METERS_PER_SPOT * DEFAULT_AGRICULTURAL_EUR_PER_M2,
+  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
   perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
 };
 
@@ -37,38 +50,61 @@ function deriveAllocationsFromConfig(config: BuildingConfig): Allocation {
   }, { lisa: 0, vicky: 0, jackie: 0, alexa: 0 } as Allocation);
 }
 
-function defaultValueForMode(mode: 'agricultural' | 'building'): number {
-  return mode === 'agricultural'
-    ? DEFAULT_AGRICULTURAL_VALUE_PER_SPOT
-    : DEFAULT_BUILDING_VALUE_PER_SPOT;
+function defaultMetricsForMode(mode: 'agricultural' | 'building'): LandSpotMetrics {
+  return mode === 'agricultural' ? DEFAULT_AGRI_METRICS : DEFAULT_BUILDING_METRICS;
+}
+
+/**
+ * Read the current plot metrics out of a config. Falls back to defaults so
+ * older saved data (which only had `valuePerSpot`) keeps working — in that
+ * case we anchor m² at the default and back-derive €/m² from the legacy
+ * value so the displayed total doesn't shift when we first show the
+ * metric inputs.
+ */
+function metricsFromConfig(config: BuildingConfig): LandSpotMetrics {
+  const m2 = config.squareMetersPerSpot ?? DEFAULT_SQUARE_METERS_PER_SPOT;
+  const eurPerM2 =
+    config.eurosPerSquareMeter ??
+    (config.valuePerSpot && m2 > 0
+      ? config.valuePerSpot / m2
+      : DEFAULT_AGRICULTURAL_EUR_PER_M2);
+  return { squareMetersPerSpot: m2, eurosPerSquareMeter: eurPerM2 };
 }
 
 /**
  * Toggle the agricultural-land asset's mode. The land is always divided into
- * whole plots; only the value-per-plot changes between modes (agricultural
- * vs. building-property zoning). Each mode's most recent value-per-plot is
- * remembered on the asset so toggling round-trips both edits.
+ * whole plots; only the metrics (m² per plot and €/m²) change between modes.
+ * Each mode's most recent metrics are remembered so toggling round-trips
+ * both inputs without loss.
  */
 function toggledLandAsset(asset: Asset): Asset {
   const currentMode = asset.landMode ?? 'agricultural';
   const nextMode: 'agricultural' | 'building' =
     currentMode === 'agricultural' ? 'building' : 'agricultural';
   const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+  const liveMetrics = metricsFromConfig(config);
 
-  // Save what we were just showing into the leaving-mode's slot, then load
-  // (or default) the entering-mode's slot.
+  // Snapshot the live metrics into the leaving-mode's slot so toggling back
+  // restores exactly what was on screen.
   const savedFromCurrent =
     currentMode === 'agricultural'
-      ? { agriculturalValuePerSpot: config.valuePerSpot }
-      : { buildingValuePerSpot: config.valuePerSpot };
+      ? { agriculturalSpotMetrics: liveMetrics }
+      : { buildingSpotMetrics: liveMetrics };
 
   const incoming =
     nextMode === 'agricultural'
-      ? asset.agriculturalValuePerSpot
-      : asset.buildingValuePerSpot;
-  const nextValuePerSpot = incoming ?? defaultValueForMode(nextMode);
+      ? asset.agriculturalSpotMetrics
+      : asset.buildingSpotMetrics;
+  const nextMetrics = incoming ?? defaultMetricsForMode(nextMode);
 
-  const nextConfig: BuildingConfig = { ...config, valuePerSpot: nextValuePerSpot };
+  const nextValuePerSpot =
+    nextMetrics.squareMetersPerSpot * nextMetrics.eurosPerSquareMeter;
+  const nextConfig: BuildingConfig = {
+    ...config,
+    valuePerSpot: nextValuePerSpot,
+    squareMetersPerSpot: nextMetrics.squareMetersPerSpot,
+    eurosPerSquareMeter: nextMetrics.eurosPerSquareMeter,
+  };
   return {
     ...asset,
     ...savedFromCurrent,
@@ -474,6 +510,9 @@ function LandPlotsPanel({
   mode: 'agricultural' | 'building';
 }) {
   const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+  const liveMetrics = metricsFromConfig(config);
+  const valuePerSpot = liveMetrics.squareMetersPerSpot * liveMetrics.eurosPerSquareMeter;
+  const totalSquareMeters = config.spots * liveMetrics.squareMetersPerSpot;
   const allocatedSpots = PERSON_IDS.reduce(
     (acc, p) => acc + (config.perSister[p] ?? 0),
     0
@@ -481,17 +520,60 @@ function LandPlotsPanel({
   const remaining = config.spots - allocatedSpots;
   const overAllocated = remaining < 0;
 
-  function updateConfig(mut: (c: BuildingConfig) => BuildingConfig) {
+  /**
+   * Apply a metrics edit. We always recompute valuePerSpot from m² × €/m²
+   * so the displayed Value/spot, the per-sister Euro figures, and the
+   * scenario's totalValue/allocations all stay consistent. The current
+   * mode's snapshot is updated alongside so a mode toggle round-trips.
+   */
+  function updateMetrics(next: LandSpotMetrics) {
     onChange((a) => {
-      const newConfig = mut(a.buildingConfig ?? DEFAULT_BUILDING_CONFIG);
-      // Mirror the live value-per-spot into the current mode's saved slot
-      // so toggling away and back doesn't lose the user's edit.
-      const savedKey =
-        mode === 'agricultural' ? 'agriculturalValuePerSpot' : 'buildingValuePerSpot';
+      const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+      const newConfig: BuildingConfig = {
+        ...cur,
+        squareMetersPerSpot: Math.max(0, next.squareMetersPerSpot),
+        eurosPerSquareMeter: Math.max(0, next.eurosPerSquareMeter),
+        valuePerSpot: Math.max(0, next.squareMetersPerSpot) * Math.max(0, next.eurosPerSquareMeter),
+      };
+      const snapshotKey =
+        mode === 'agricultural' ? 'agriculturalSpotMetrics' : 'buildingSpotMetrics';
       return {
         ...a,
         buildingConfig: newConfig,
-        [savedKey]: newConfig.valuePerSpot,
+        [snapshotKey]: {
+          squareMetersPerSpot: newConfig.squareMetersPerSpot ?? 0,
+          eurosPerSquareMeter: newConfig.eurosPerSquareMeter ?? 0,
+        },
+        totalValue: newConfig.spots * newConfig.valuePerSpot,
+        allocations: deriveAllocationsFromConfig(newConfig),
+      };
+    });
+  }
+
+  function updateSpots(spots: number) {
+    onChange((a) => {
+      const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+      const safe = Math.max(0, Math.floor(spots));
+      const newConfig: BuildingConfig = { ...cur, spots: safe };
+      return {
+        ...a,
+        buildingConfig: newConfig,
+        totalValue: safe * newConfig.valuePerSpot,
+        allocations: deriveAllocationsFromConfig(newConfig),
+      };
+    });
+  }
+
+  function updateSister(personId: PersonId, value: number) {
+    onChange((a) => {
+      const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+      const newConfig: BuildingConfig = {
+        ...cur,
+        perSister: { ...cur.perSister, [personId]: Math.max(0, Math.floor(value)) },
+      };
+      return {
+        ...a,
+        buildingConfig: newConfig,
         totalValue: newConfig.spots * newConfig.valuePerSpot,
         allocations: deriveAllocationsFromConfig(newConfig),
       };
@@ -500,7 +582,11 @@ function LandPlotsPanel({
 
   return (
     <div className="rounded-md border border-slate-200 bg-white p-2">
-      <div className="mb-2 grid grid-cols-2 gap-2">
+      {/* Three primary inputs: number of plots, m² per plot, €/m² (current
+          mode). Value/spot and total value are derived and shown below for
+          transparency. Both metrics are saved per mode so toggling the
+          mode swaps both — the spots and per-sister allocation persist. */}
+      <div className="mb-2 grid grid-cols-3 gap-2">
         <div>
           <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Spots
@@ -512,41 +598,78 @@ function LandPlotsPanel({
             step={1}
             className="field mt-0.5 w-full py-1 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
             value={config.spots}
-            onChange={(e) =>
-              updateConfig((c) => ({
-                ...c,
-                spots: Math.max(0, Math.floor(Number(e.target.value) || 0)),
-              }))
-            }
+            onChange={(e) => updateSpots(Number(e.target.value) || 0)}
             onFocus={(e) => e.currentTarget.select()}
             disabled={readOnly}
           />
         </div>
         <div>
           <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-            Value / spot
+            m² / spot
           </label>
           <div className="relative mt-0.5">
             <input
               type="number"
               inputMode="decimal"
               min={0}
-              className="field w-full py-1 pr-6 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
-              value={config.valuePerSpot}
+              className="field w-full py-1 pr-8 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+              value={liveMetrics.squareMetersPerSpot}
               onChange={(e) =>
-                updateConfig((c) => ({
-                  ...c,
-                  valuePerSpot: Math.max(0, Number(e.target.value) || 0),
-                }))
+                updateMetrics({
+                  ...liveMetrics,
+                  squareMetersPerSpot: Number(e.target.value) || 0,
+                })
               }
               onFocus={(e) => e.currentTarget.select()}
               disabled={readOnly}
             />
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-              €
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+              m²
             </span>
           </div>
         </div>
+        <div>
+          <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            € / m²
+          </label>
+          <div className="relative mt-0.5">
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              className="field w-full py-1 pr-8 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+              value={liveMetrics.eurosPerSquareMeter}
+              onChange={(e) =>
+                updateMetrics({
+                  ...liveMetrics,
+                  eurosPerSquareMeter: Number(e.target.value) || 0,
+                })
+              }
+              onFocus={(e) => e.currentTarget.select()}
+              disabled={readOnly}
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+              €/m²
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Derived view of what those inputs come out to. Read-only so users
+          aren't tempted to type in here and create an inconsistency. */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-2 py-1 text-[11px]">
+        <span className="text-slate-600">
+          Value / spot{' '}
+          <strong className="tabular-nums text-slate-800">
+            € {valuePerSpot.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
+          </strong>
+        </span>
+        <span className="text-slate-600">
+          Total area{' '}
+          <strong className="tabular-nums text-slate-800">
+            {totalSquareMeters.toLocaleString('de-DE', { maximumFractionDigits: 0 })} m²
+          </strong>
+        </span>
       </div>
 
       <div className="mb-2 flex items-center justify-between text-[11px]">
@@ -575,7 +698,7 @@ function LandPlotsPanel({
       <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
         {PEOPLE.map((p) => {
           const spots = config.perSister[p.id] ?? 0;
-          const euro = spots * config.valuePerSpot;
+          const euro = spots * valuePerSpot;
           const gradient = `linear-gradient(135deg, ${p.colors.primary}, ${p.colors.accent})`;
           return (
             <div
@@ -612,15 +735,7 @@ function LandPlotsPanel({
                   step={1}
                   className="field py-1 pr-10 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
                   value={spots}
-                  onChange={(e) =>
-                    updateConfig((c) => ({
-                      ...c,
-                      perSister: {
-                        ...c.perSister,
-                        [p.id]: Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                      },
-                    }))
-                  }
+                  onChange={(e) => updateSister(p.id, Number(e.target.value) || 0)}
                   onFocus={(e) => e.currentTarget.select()}
                   disabled={readOnly}
                 />
