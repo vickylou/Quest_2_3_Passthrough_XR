@@ -22,7 +22,18 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ lisa: 72, vicky: 28 }),
       imageKey: 'house',
       tone: 'sky',
-      subItems: [{ id: 'helm_renovation', label: 'Renovation costs', amount: 250_000 }],
+      // Renovation cost is added on top of Helmhaus's headline value.
+      // Default split mirrors the asset's allocation (Lisa 72 / Vicky 28)
+      // — the heirs typically shoulder the renovation in proportion to
+      // their share. Editable per-row in the breakdown panel.
+      subItems: [
+        {
+          id: 'helm_renovation',
+          label: 'Renovation costs',
+          amount: 250_000,
+          allocations: alloc({ lisa: 72, vicky: 28 }),
+        },
+      ],
       internalBreakdown: '',
     },
     {

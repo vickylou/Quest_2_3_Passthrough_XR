@@ -239,6 +239,10 @@ function AssetCard({
                 derived={isLand}
                 sum={sum}
                 sumOff={sumOff}
+                breakdownAddon={(asset.subItems ?? []).reduce(
+                  (acc, i) => acc + (i.amount ?? 0),
+                  0
+                )}
               />
             </div>
 
@@ -394,6 +398,7 @@ function TotalValueField({
   derived = false,
   sum,
   sumOff,
+  breakdownAddon = 0,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -403,12 +408,16 @@ function TotalValueField({
   derived?: boolean;
   sum: number;
   sumOff: boolean;
+  /** Sum of additive breakdown items. When > 0, the field shows a small
+   *  hint that the asset's effective total is base + this amount. */
+  breakdownAddon?: number;
 }) {
+  const effectiveTotal = value + breakdownAddon;
   return (
     <div>
       <div className="flex items-center gap-1.5">
         <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-          Total value
+          {breakdownAddon > 0 ? 'Base value' : 'Total value'}
         </label>
         <span
           className={`pill px-1.5 py-0 text-[9px] ${
@@ -438,6 +447,12 @@ function TotalValueField({
           €
         </span>
       </div>
+      {breakdownAddon > 0 && (
+        <p className="mt-0.5 text-[10px] text-slate-500">
+          + {formatEuro(breakdownAddon)} breakdown · effective total{' '}
+          <strong className="tabular-nums text-slate-700">{formatEuro(effectiveTotal)}</strong>
+        </p>
+      )}
     </div>
   );
 }
@@ -922,7 +937,7 @@ function BreakdownPanel({
 }) {
   const items = asset.subItems ?? [];
   const subSum = items.reduce((acc, i) => acc + (i.amount ?? 0), 0);
-  const base = asset.totalValue - subSum;
+  const effectiveTotal = asset.totalValue + subSum;
 
   function ensureItems(): AssetSubItem[] {
     return asset.subItems ?? [];
@@ -930,7 +945,17 @@ function BreakdownPanel({
   function addItem() {
     onChange((a) => ({
       ...a,
-      subItems: [...(a.subItems ?? []), { id: uid('sub'), label: 'Component', amount: 0 }],
+      // New rows inherit the parent allocation so the user only has to
+      // tweak it when the cost actually falls on a different sister mix.
+      subItems: [
+        ...(a.subItems ?? []),
+        {
+          id: uid('sub'),
+          label: 'Component',
+          amount: 0,
+          allocations: { ...a.allocations },
+        },
+      ],
     }));
   }
   function updateItem(id: string, mut: (i: AssetSubItem) => AssetSubItem) {
@@ -952,45 +977,26 @@ function BreakdownPanel({
         ▸ Breakdown {items.length > 0 && <span className="text-slate-400">({items.length})</span>}
       </summary>
       <div className="border-t border-slate-200 p-2 text-xs">
-        <div className="space-y-1">
-          <div className="flex items-center justify-between rounded bg-slate-50 px-2 py-1">
-            <span className="text-slate-600">Base value</span>
-            <span className="tabular-nums text-slate-700">{formatEuro(base)}</span>
-          </div>
+        <div className="mb-1.5 flex items-center justify-between rounded bg-slate-50 px-2 py-1">
+          <span className="text-slate-600">Base value</span>
+          <span className="tabular-nums text-slate-700">{formatEuro(asset.totalValue)}</span>
+        </div>
+        <p className="mb-1.5 text-[10px] italic text-slate-500">
+          Items below are added on top of the base value (e.g. renovation
+          costs the heir still has to put in). Each row carries its own
+          per-sister split — typically the heirs of the asset shoulder
+          these costs.
+        </p>
+        <div className="space-y-2">
           {items.map((i) => (
-            <div key={i.id} className="flex items-center gap-1.5">
-              <input
-                className="field flex-1 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-600"
-                value={i.label}
-                onChange={(e) => updateItem(i.id, (x) => ({ ...x, label: e.target.value }))}
-                disabled={readOnly}
-              />
-              <div className="relative w-24">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  className="field py-1 pr-5 text-right text-xs tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
-                  value={i.amount}
-                  onChange={(e) =>
-                    updateItem(i.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
-                  }
-                  onFocus={(e) => e.currentTarget.select()}
-                  disabled={readOnly}
-                />
-                <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
-                  €
-                </span>
-              </div>
-              {!readOnly && (
-                <button
-                  onClick={() => removeItem(i.id)}
-                  className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
-                  title="Remove component"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+            <BreakdownItemRow
+              key={i.id}
+              item={i}
+              parentAllocations={asset.allocations}
+              onUpdate={updateItem}
+              onRemove={removeItem}
+              readOnly={readOnly}
+            />
           ))}
         </div>
         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5 text-xs">
@@ -1002,16 +1008,123 @@ function BreakdownPanel({
             <span />
           )}
           <span className="font-medium tabular-nums text-slate-800">
-            Total {formatEuro(asset.totalValue)}
+            Effective total {formatEuro(effectiveTotal)}
           </span>
         </div>
-        {base < -0.5 && (
-          <p className="mt-1 text-[10px] text-rose-600">
-            Components add up to more than the total. Increase the total or trim a component.
-          </p>
-        )}
       </div>
     </details>
+  );
+}
+
+function BreakdownItemRow({
+  item,
+  parentAllocations,
+  onUpdate,
+  onRemove,
+  readOnly,
+}: {
+  item: AssetSubItem;
+  parentAllocations: Allocation;
+  onUpdate: (id: string, mut: (i: AssetSubItem) => AssetSubItem) => void;
+  onRemove: (id: string) => void;
+  readOnly: boolean;
+}) {
+  const alloc = item.allocations ?? parentAllocations;
+  const sum = PERSON_IDS.reduce((acc, p) => acc + (alloc[p] ?? 0), 0);
+  const sumOff = Math.abs(sum - 100) > 0.05 && sum !== 0;
+  return (
+    <div className="space-y-1.5 rounded-md border border-slate-200 bg-white p-1.5">
+      <div className="flex items-center gap-1.5">
+        <input
+          className="field flex-1 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-600"
+          value={item.label}
+          onChange={(e) => onUpdate(item.id, (x) => ({ ...x, label: e.target.value }))}
+          disabled={readOnly}
+        />
+        <div className="relative w-28">
+          <input
+            type="number"
+            inputMode="decimal"
+            className="field py-1 pr-5 text-right text-xs tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+            value={item.amount}
+            onChange={(e) =>
+              onUpdate(item.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
+            }
+            onFocus={(e) => e.currentTarget.select()}
+            disabled={readOnly}
+          />
+          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+            €
+          </span>
+        </div>
+        <span
+          className={`pill px-1.5 py-0 text-[9px] ${
+            sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+          }`}
+          title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+        >
+          Σ {formatPercent(sum)}
+        </span>
+        {!readOnly && (
+          <button
+            onClick={() => onRemove(item.id)}
+            className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
+            title="Remove component"
+            aria-label="Remove component"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-1 lg:grid-cols-4">
+        {PEOPLE.map((p) => {
+          const pct = alloc[p.id] ?? 0;
+          const euro = (item.amount * pct) / 100;
+          const gradient = `linear-gradient(135deg, ${p.colors.primary}, ${p.colors.accent})`;
+          return (
+            <div
+              key={p.id}
+              className="rounded border border-slate-200 bg-white px-1.5 py-1"
+            >
+              <div className="flex items-center justify-between gap-1 text-[11px] text-slate-700">
+                <span className="flex min-w-0 items-center gap-1">
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: gradient }}
+                    aria-hidden
+                  />
+                  <span className="truncate">{p.name}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-slate-500">
+                  {formatEuroCompact(euro)}
+                </span>
+              </div>
+              <div className="relative mt-0.5">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  className="field py-0.5 pr-5 text-right text-[11px] tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+                  value={pct}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    onUpdate(item.id, (x) => ({
+                      ...x,
+                      allocations: { ...(x.allocations ?? parentAllocations), [p.id]: v },
+                    }));
+                  }}
+                  onFocus={(e) => e.currentTarget.select()}
+                  disabled={readOnly}
+                />
+                <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">
+                  %
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
