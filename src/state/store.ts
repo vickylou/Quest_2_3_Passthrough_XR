@@ -4,6 +4,7 @@ import {
   Author,
   Correction,
   PersistedState,
+  PersonId,
   Scenario,
   ScenarioStatus,
   Transfer,
@@ -56,11 +57,11 @@ interface StoreState extends PersistedState {
   updateAsset: (id: string, mut: (a: Asset) => Asset) => void;
   removeAsset: (id: string) => void;
   // transfers
-  addTransfer: () => void;
+  addTransfer: (to?: PersonId) => void;
   updateTransfer: (id: string, mut: (t: Transfer) => Transfer) => void;
   removeTransfer: (id: string) => void;
   // corrections
-  addCorrection: () => void;
+  addCorrection: (person?: PersonId) => void;
   updateCorrection: (id: string, mut: (c: Correction) => Correction) => void;
   removeCorrection: (id: string) => void;
 }
@@ -404,7 +405,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       assets: s.assets.filter((a) => a.id !== id),
     })),
 
-  addTransfer: () =>
+  addTransfer: (to?: PersonId) =>
     get().updateActive((s) => ({
       ...s,
       transfers: [
@@ -413,7 +414,7 @@ export const useStore = create<StoreState>()((set, get) => ({
           id: uid('tr'),
           name: 'New payment',
           from: 'mum_and_dad',
-          to: 'vicky',
+          to: to ?? 'vicky',
           amount: 0,
         },
       ],
@@ -431,14 +432,14 @@ export const useStore = create<StoreState>()((set, get) => ({
       transfers: s.transfers.filter((t) => t.id !== id),
     })),
 
-  addCorrection: () =>
+  addCorrection: (person?: PersonId) =>
     get().updateActive((s) => ({
       ...s,
       corrections: [
         ...s.corrections,
         {
           id: uid('corr'),
-          person: 'lisa',
+          person: person ?? 'lisa',
           amount: 0,
           active: false,
           note: '',

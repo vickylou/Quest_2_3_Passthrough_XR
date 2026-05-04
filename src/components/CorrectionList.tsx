@@ -3,6 +3,13 @@ import { useIsActiveReadOnly, useStore } from '../state/store';
 import { SectionIllustration } from './icons/SectionIllustration';
 import { toneStyle } from '../lib/tones';
 
+// Vicky shown first to match the Direct payments card.
+const SISTERS_VICKY_FIRST = (() => {
+  const vicky = PEOPLE.find((p) => p.id === 'vicky')!;
+  const others = PEOPLE.filter((p) => p.id !== 'vicky');
+  return [vicky, ...others];
+})();
+
 const fmtEuro = (n: number) =>
   '€ ' +
   n.toLocaleString('de-DE', {
@@ -29,7 +36,7 @@ export function CorrectionList() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Corrections</h2>
                 {!readOnly && (
-                  <button onClick={add} className="btn">
+                  <button onClick={() => add()} className="btn">
                     + Correction
                   </button>
                 )}
@@ -52,39 +59,34 @@ export function CorrectionList() {
             </div>
           </div>
 
-          {corrections.length === 0 ? (
-            <p className="text-sm text-slate-500">No corrections yet.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {PEOPLE.map((p) => {
-                const personCorr = corrections.filter((c) => c.person === p.id);
-                if (personCorr.length === 0) return null;
-                const activeSum = personCorr.reduce(
-                  (acc, c) => (c.active ? acc + c.amount : acc),
-                  0
-                );
-                const activeCount = personCorr.filter((c) => c.active).length;
-                return (
-                  <PersonCorrectionGroup
-                    key={p.id}
-                    personId={p.id}
-                    personName={p.name}
-                    colors={p.colors}
-                    corrections={personCorr}
-                    activeSum={activeSum}
-                    activeCount={activeCount}
-                    onUpdate={update}
-                    onRemove={remove}
-                    readOnly={readOnly}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            {SISTERS_VICKY_FIRST.map((p) => {
+              const personCorr = corrections.filter((c) => c.person === p.id);
+              const activeSum = personCorr.reduce(
+                (acc, c) => (c.active ? acc + c.amount : acc),
+                0
+              );
+              const activeCount = personCorr.filter((c) => c.active).length;
+              return (
+                <PersonCorrectionGroup
+                  key={p.id}
+                  personId={p.id}
+                  personName={p.name}
+                  colors={p.colors}
+                  corrections={personCorr}
+                  activeSum={activeSum}
+                  activeCount={activeCount}
+                  onAdd={() => add(p.id)}
+                  onUpdate={update}
+                  onRemove={remove}
+                  readOnly={readOnly}
+                />
+              );
+            })}
+          </div>
 
           <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Correction values are assumptions, not legal facts. Useful for fairness discussions —
-            verify with a notary or tax adviser before acting on them.
+            Correction values are assumptions, not legal facts. Useful for fairness discussions.
           </div>
         </div>
 
@@ -112,6 +114,7 @@ function PersonCorrectionGroup({
   corrections,
   activeSum,
   activeCount,
+  onAdd,
   onUpdate,
   onRemove,
   readOnly,
@@ -122,6 +125,7 @@ function PersonCorrectionGroup({
   corrections: Correction[];
   activeSum: number;
   activeCount: number;
+  onAdd: () => void;
   onUpdate: (id: string, mut: (c: Correction) => Correction) => void;
   onRemove: (id: string) => void;
   readOnly: boolean;
@@ -156,6 +160,9 @@ function PersonCorrectionGroup({
         </span>
       </summary>
       <div className="space-y-1.5 border-t border-slate-200 p-2">
+        {corrections.length === 0 && (
+          <p className="text-xs italic text-slate-400">Noch keine Korrekturen für {personName}.</p>
+        )}
         {corrections.map((c) => (
           <CorrectionRow
             key={c.id}
@@ -165,6 +172,15 @@ function PersonCorrectionGroup({
             readOnly={readOnly}
           />
         ))}
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="btn btn-compact w-full justify-center"
+          >
+            + Correction for {personName}
+          </button>
+        )}
       </div>
     </details>
   );

@@ -10,6 +10,14 @@ const SOURCE_OPTIONS: { value: NonNullable<TransferSource>; label: string }[] = 
   { value: 'mum_and_dad', label: 'Mum & Dad' },
 ];
 
+// Vicky is shown first because this is her instance of the calculator;
+// the other three follow in their original order.
+const SISTERS_VICKY_FIRST = (() => {
+  const vicky = PEOPLE.find((p) => p.id === 'vicky')!;
+  const others = PEOPLE.filter((p) => p.id !== 'vicky');
+  return [vicky, ...others];
+})();
+
 const fmtEuro = (n: number) =>
   '€ ' +
   n.toLocaleString('de-DE', {
@@ -36,7 +44,7 @@ export function TransferList() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Direct payments to</h2>
                 {!readOnly && (
-                  <button onClick={add} className="btn">
+                  <button onClick={() => add()} className="btn">
                     + Payment
                   </button>
                 )}
@@ -59,30 +67,26 @@ export function TransferList() {
             </div>
           </div>
 
-          {transfers.length === 0 ? (
-            <p className="text-sm text-slate-500">No payments recorded yet.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {PEOPLE.map((p) => {
-                const personTransfers = transfers.filter((t) => t.to === p.id);
-                if (personTransfers.length === 0) return null;
-                const incoming = personTransfers.reduce((acc, t) => acc + t.amount, 0);
-                return (
-                  <PersonTransferGroup
-                    key={p.id}
-                    personId={p.id}
-                    personName={p.name}
-                    colors={p.colors}
-                    transfers={personTransfers}
-                    incoming={incoming}
-                    onUpdate={update}
-                    onRemove={remove}
-                    readOnly={readOnly}
-                  />
-                );
-              })}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            {SISTERS_VICKY_FIRST.map((p) => {
+              const personTransfers = transfers.filter((t) => t.to === p.id);
+              const incoming = personTransfers.reduce((acc, t) => acc + t.amount, 0);
+              return (
+                <PersonTransferGroup
+                  key={p.id}
+                  personId={p.id}
+                  personName={p.name}
+                  colors={p.colors}
+                  transfers={personTransfers}
+                  incoming={incoming}
+                  onAdd={() => add(p.id)}
+                  onUpdate={update}
+                  onRemove={remove}
+                  readOnly={readOnly}
+                />
+              );
+            })}
+          </div>
         </div>
 
         <div
@@ -108,6 +112,7 @@ function PersonTransferGroup({
   colors,
   transfers,
   incoming,
+  onAdd,
   onUpdate,
   onRemove,
   readOnly,
@@ -117,6 +122,7 @@ function PersonTransferGroup({
   colors: { primary: string; accent: string };
   transfers: Transfer[];
   incoming: number;
+  onAdd: () => void;
   onUpdate: (id: string, mut: (t: Transfer) => Transfer) => void;
   onRemove: (id: string) => void;
   readOnly: boolean;
@@ -143,6 +149,9 @@ function PersonTransferGroup({
         </span>
       </summary>
       <div className="space-y-1.5 border-t border-slate-200 p-2">
+        {transfers.length === 0 && (
+          <p className="text-xs italic text-slate-400">Noch keine Zahlungen an {personName}.</p>
+        )}
         {transfers.map((t) => (
           <TransferRow
             key={t.id}
@@ -152,6 +161,15 @@ function PersonTransferGroup({
             readOnly={readOnly}
           />
         ))}
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="btn btn-compact w-full justify-center"
+          >
+            + Payment to {personName}
+          </button>
+        )}
       </div>
     </details>
   );
