@@ -61,10 +61,14 @@ function AssetCard({
 
   return (
     <article
-      className="overflow-hidden rounded-lg border shadow-sm"
+      className="w-full overflow-hidden rounded-lg border shadow-sm"
       style={{ borderColor: tone.border, background: tone.bg }}
     >
-      <div className="grid grid-cols-[1fr_auto] gap-0">
+      {/* Single column on phone (illustration is hidden anyway); two-column
+          on md+ where the right column hosts the illustration. Explicit
+          single-col on mobile avoids any leftover track sizing from the
+          1fr/auto template. */}
+      <div className="grid grid-cols-1 gap-0 md:grid-cols-[1fr_auto]">
         {/* Left: title + value + percentages + nested breakdowns */}
         <div className="min-w-0 p-3 md:p-4">
           <div className="mb-2 flex items-start justify-between gap-2">

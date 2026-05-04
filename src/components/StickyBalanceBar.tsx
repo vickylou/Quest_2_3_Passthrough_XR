@@ -21,7 +21,7 @@ const SOURCE_LABEL: Record<NonNullable<TransferSource>, string> = {
   mum_and_dad: 'Mum & Dad',
 };
 
-export function StickyBalanceBar() {
+export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: boolean }) {
   const scenario = useStore((s) => s.scenarios[s.activeId]);
   const balances = useMemo(() => computeBalances(scenario), [scenario]);
   const [expanded, setExpanded] = useState(false);
@@ -29,9 +29,14 @@ export function StickyBalanceBar() {
   const score = fairnessScore(balances);
   const maxDev = maxDeviation(balances);
 
+  // When the header collapses on mobile, slide the bar up to fill the gap;
+  // on md+ the header doesn't collapse so the bar stays anchored just below
+  // it like before.
+  const stickTop = headerHidden ? 'top-0 md:top-[60px]' : 'top-[44px] md:top-[60px]';
+
   return (
     <div
-      className="sticky top-[56px] z-20 border-b border-slate-200 bg-white/95 backdrop-blur md:top-[60px]"
+      className={`sticky z-20 border-b border-indigo-200 bg-indigo-50/95 backdrop-blur transition-[top] duration-200 ${stickTop}`}
       data-pdf-capture="balance-bar"
     >
       <div className="mx-auto max-w-6xl px-3 py-2 md:px-6">
@@ -95,14 +100,17 @@ function SisterChip({
   return (
     <div className="rounded-lg p-[2px]" style={{ background: gradient }}>
       <div className="rounded-[7px] bg-white">
-        {/* Compact header: clicking the ▾ toggles ALL four chips together. */}
+        {/* Compact header: clicking the ▾ toggles ALL four chips together.
+            On phone the diff sits underneath the total to give every line
+            its own row's worth of width — the side-by-side layout was
+            overflowing on 320px screens. */}
         <button
-          className="flex w-full items-center justify-between px-3 py-1.5 text-left focus:outline-none focus:ring-2 focus:ring-slate-400"
+          className="flex w-full flex-col items-stretch gap-0.5 px-2 py-1.5 text-left focus:outline-none focus:ring-2 focus:ring-slate-400 md:flex-row md:items-center md:justify-between md:px-3"
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls={`chip-${personId}-detail`}
         >
-          <div className="min-w-0">
+          <div className="flex items-center justify-between gap-2 md:block">
             <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
               {person.name}
             </div>
@@ -110,7 +118,7 @@ function SisterChip({
               {formatEuroCompact(total)}
             </div>
           </div>
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex items-center justify-between gap-1 md:flex-col md:items-end md:gap-0.5">
             <span
               className={`pill text-[10px] tabular-nums ${
                 positive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { exportScenarioPDF } from '../lib/pdf';
 import { Author, AUTHORS, Scenario, ScenarioStatus, Visibility } from '../types';
 import { buildShareUrl } from '../lib/share';
+import { AuthorBadge } from './AuthorBadge';
 
 type Tab = 'mine' | 'others';
 
@@ -85,26 +86,12 @@ export function ScenarioBar() {
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Active scenario
           </label>
-          <select
-            className="field"
-            value={activeId}
-            onChange={(e) => setActive(e.target.value)}
-          >
-            {grouped.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.scenarios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {pickerLabel(s, tab)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-            {grouped.length === 0 && (
-              <option value={activeId} disabled>
-                — none yet —
-              </option>
-            )}
-          </select>
+          <ScenarioPicker
+            active={active}
+            tab={tab}
+            grouped={grouped}
+            onPick={setActive}
+          />
         </div>
 
         <ScenarioChips scenario={active} tab={tab} />
@@ -230,6 +217,120 @@ function TabButton({
   );
 }
 
+/**
+ * Custom dropdown for scenario selection. Replaces the native <select> so we
+ * can render an AuthorBadge per item — the user sees whose scenario each
+ * option is from while scrolling through the list. Uses a button + popup
+ * pattern with click-outside-to-close.
+ */
+function ScenarioPicker({
+  active,
+  tab,
+  grouped,
+  onPick,
+}: {
+  active: Scenario;
+  tab: Tab;
+  grouped: Array<{ label: string; scenarios: Scenario[] }>;
+  onPick: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocDown(e: MouseEvent | TouchEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('touchstart', onDocDown);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('touchstart', onDocDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        className="field flex w-full items-center justify-between gap-2 text-left"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <AuthorBadge author={active.author} />
+          <span className="min-w-0 truncate">{active.name}</span>
+          {active.status === 'final' && <span className="shrink-0 text-emerald-600">✓</span>}
+          {active.status === 'preferred' && <span className="shrink-0 text-amber-500">★</span>}
+        </span>
+        <span className="shrink-0 text-slate-400">▾</span>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 z-30 mt-1 max-h-[60vh] overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"
+        >
+          {grouped.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-slate-500">— none yet —</div>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.label}>
+                <div className="sticky top-0 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  {group.label}
+                </div>
+                {group.scenarios.map((s) => {
+                  const selected = s.id === active.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onPick(s.id);
+                        setOpen(false);
+                      }}
+                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                        selected ? 'bg-slate-100' : ''
+                      }`}
+                    >
+                      <AuthorBadge author={s.author} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-1">
+                          <span className="truncate font-medium text-slate-800">{s.name}</span>
+                          {s.status === 'final' && (
+                            <span className="text-xs text-emerald-600">✓ Final</span>
+                          )}
+                          {s.status === 'preferred' && (
+                            <span className="text-xs text-amber-500">★ Preferred</span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+                          {tab === 'mine' && <span>{visibilityIcon(s.visibility)}</span>}
+                          {s.meeting && <span>📅 {s.meeting}</span>}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScenarioChips({ scenario, tab }: { scenario: Scenario; tab: Tab }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -245,37 +346,6 @@ function ScenarioChips({ scenario, tab }: { scenario: Scenario; tab: Tab }) {
   );
 }
 
-/**
- * Small circular badge showing the first letter of an author's name in their
- * sister-colour gradient (or a slate gradient for Mum / Dad / Test, who don't
- * have a colour pair). Used wherever we'd otherwise spell out the author —
- * scenario chips, the read-only banner — to keep the layout compact and make
- * authorship recognisable at a glance.
- */
-function AuthorBadge({ author, size = 'sm' }: { author: Author; size?: 'sm' | 'md' }) {
-  const meta = AUTHOR_META[author];
-  const dim = size === 'md' ? 'h-6 w-6 text-xs' : 'h-5 w-5 text-[10px]';
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white ${dim}`}
-      style={{ background: meta.gradient }}
-      title={meta.name}
-      aria-label={meta.name}
-    >
-      {meta.letter}
-    </span>
-  );
-}
-
-const AUTHOR_META: Record<Author, { name: string; letter: string; gradient: string }> = {
-  lisa: { name: 'Lisa', letter: 'L', gradient: 'linear-gradient(135deg, #16a34a, #2563eb)' },
-  vicky: { name: 'Vicky', letter: 'V', gradient: 'linear-gradient(135deg, #eab308, #f97316)' },
-  jackie: { name: 'Jackie', letter: 'J', gradient: 'linear-gradient(135deg, #dc2626, #ec4899)' },
-  alexa: { name: 'Alexa', letter: 'A', gradient: 'linear-gradient(135deg, #9333ea, #7c3aed)' },
-  mum: { name: 'Mum', letter: 'M', gradient: 'linear-gradient(135deg, #475569, #1e293b)' },
-  dad: { name: 'Dad', letter: 'D', gradient: 'linear-gradient(135deg, #334155, #0f172a)' },
-  test: { name: 'Test phone', letter: 'T', gradient: 'linear-gradient(135deg, #94a3b8, #64748b)' },
-};
 
 type ChipTone = 'slate' | 'indigo' | 'emerald' | 'amber' | 'sky' | 'violet';
 
