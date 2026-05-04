@@ -103,32 +103,33 @@ function SisterChip({
       style={{ background: gradient }}
     >
       <div className="overflow-hidden rounded-[7px] bg-white">
-        {/* Tight stacked layout on phone: name on top, total below, diff
-            and arrow on a third row. Each row is its own block so a long
-            value can't push a sibling off the edge of the chip. */}
+        {/* Two rows: label + toggle arrow on top, total + signed diff
+            inline below. Inlining the diff next to the total reads like
+            a price tag — "1.35 M  +173 K" — which is simpler at a glance
+            than a stacked pill below the total. */}
         <button
-          className="flex w-full min-w-0 flex-col items-start gap-0 px-1.5 py-1 text-left focus:outline-none focus:ring-2 focus:ring-slate-400 md:flex-row md:items-center md:justify-between md:gap-1 md:px-3 md:py-1.5"
+          className="flex w-full min-w-0 flex-col items-stretch px-1.5 py-1 text-left focus:outline-none focus:ring-2 focus:ring-slate-400 md:px-3 md:py-1.5"
           onClick={onToggle}
           aria-expanded={expanded}
           aria-controls={`chip-${personId}-detail`}
         >
-          <div className="min-w-0 max-w-full md:flex-1">
-            <div className="text-[9px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-medium uppercase tracking-wide text-slate-500 md:text-[10px]">
               {person.name}
-            </div>
-            <div className="truncate text-sm font-semibold tabular-nums text-slate-800 md:text-lg">
-              {formatEuroCompact(total)}
-            </div>
+            </span>
+            <span className="shrink-0 text-[10px] text-slate-400">{expanded ? '▴' : '▾'}</span>
           </div>
-          <div className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-1 md:mt-0 md:w-auto md:flex-col md:items-end md:gap-0.5">
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+            <span className="truncate text-sm font-semibold tabular-nums text-slate-800 md:text-lg">
+              {formatEuroCompact(total)}
+            </span>
             <span
-              className={`pill truncate max-w-full text-[9px] tabular-nums md:text-[10px] ${
-                positive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+              className={`truncate text-[10px] font-medium tabular-nums md:text-xs ${
+                positive ? 'text-emerald-600' : 'text-rose-600'
               }`}
             >
               {formatSignedEuroCompact(diff)}
             </span>
-            <span className="shrink-0 text-[10px] text-slate-400">{expanded ? '▴' : '▾'}</span>
           </div>
         </button>
 
