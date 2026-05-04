@@ -251,6 +251,7 @@ function TotalValueField({
           className="field w-32 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
+          onFocus={(e) => e.currentTarget.select()}
           disabled={readOnly}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
@@ -284,11 +285,23 @@ function PercentGrid({
     onChange((a) => ({ ...a, allocations: { ...a.allocations, [person]: value } }));
   }
 
-  function applySuggestion(person: PersonId) {
+  /**
+   * Applying a suggestion now writes all non-anchor allocations in one go.
+   * If we updated only the cell whose suggestion was clicked, the OTHER
+   * cells' suggestions would immediately recompute against the new total
+   * and the user would be sent on a back-and-forth loop. Clicking any one
+   * suggestion therefore commits the full proposed split.
+   */
+  function applySuggestion() {
     if (!suggestion) return;
     onChange((a) => ({
       ...a,
-      allocations: { ...a.allocations, [person]: roundTo(suggestion[person], 2) },
+      allocations: {
+        ...a.allocations,
+        ...Object.fromEntries(
+          PERSON_IDS.filter((p) => p !== anchor).map((p) => [p, roundTo(suggestion[p], 2)])
+        ),
+      } as Asset['allocations'],
     }));
   }
 
@@ -306,7 +319,7 @@ function PercentGrid({
             euro={(asset.totalValue * current) / 100}
             suggestion={sug}
             onChange={(v) => setShare(p.id, v)}
-            onAcceptSuggestion={() => applySuggestion(p.id)}
+            onAcceptSuggestion={applySuggestion}
             readOnly={readOnly}
           />
         );
@@ -363,6 +376,7 @@ function PersonShareCell({
           className="field py-1 pr-7 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
           value={percent}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
+          onFocus={(e) => e.currentTarget.select()}
           disabled={readOnly}
         />
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
@@ -447,6 +461,7 @@ function BreakdownPanel({
                   onChange={(e) =>
                     updateItem(i.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
                   }
+                  onFocus={(e) => e.currentTarget.select()}
                   disabled={readOnly}
                 />
                 <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
