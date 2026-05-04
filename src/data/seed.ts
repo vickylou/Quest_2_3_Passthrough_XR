@@ -67,6 +67,12 @@ export function defaultAssets(): Asset[] {
       imageKey: 'field',
       tone: 'orange',
       notes: '6 500 m² ≈ 40 €/m². Future upside if rezoned.',
+      landMode: 'agricultural',
+      buildingConfig: {
+        spots: 6,
+        valuePerSpot: 750_000,
+        perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
+      },
     },
   ];
 }
