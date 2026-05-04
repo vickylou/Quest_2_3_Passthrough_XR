@@ -48,4 +48,26 @@
   .pill {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }
+
+  /* Helmhaus disclosure drop-downs (PartySection / SubExp / Außen).
+     Adds a rotating chevron so it's obvious every level is expandable. */
+  details.helm-disclosure > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  details.helm-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+  details.helm-disclosure > summary::after {
+    content: "\25BE"; /* ▾ */
+    margin-left: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+    transition: transform 0.2s;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  details.helm-disclosure[open] > summary::after {
+    transform: rotate(180deg);
+  }
 }

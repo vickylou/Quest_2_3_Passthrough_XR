@@ -367,7 +367,7 @@ function PartySection({
       : { bg: '#f4eecf', border: '#c9b65d', text: '#7a6620' };
   return (
     <details
-      className="rounded-lg border"
+      className="helm-disclosure rounded-lg border"
       style={{ background: colors.bg, borderColor: colors.border }}
     >
       <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
@@ -395,7 +395,7 @@ function SubExp({
   children?: React.ReactNode;
 }) {
   return (
-    <details className="rounded-md border border-slate-200 bg-white">
+    <details className="helm-disclosure rounded-md border border-slate-200 bg-white">
       <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs">
         <span className="text-slate-700">
           {label}
@@ -473,7 +473,7 @@ function FloorEG() {
             }
             value={fmt(238_000)}
           />
-          <details className="mt-2 rounded-md border border-green-600/40" style={{ background: '#e7f0e0' }}>
+          <details className="helm-disclosure mt-2 rounded-md border border-green-600/40" style={{ background: '#e7f0e0' }}>
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs">
               <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#3d5e2e' }}>
                 Außen gesamt (grün) · ~365 m²
@@ -605,7 +605,7 @@ function FloorOG() {
             }
             value={fmt(122_700)}
           />
-          <details className="mt-2 rounded-md border border-purple-400/40" style={{ background: '#f0e0ec' }}>
+          <details className="helm-disclosure mt-2 rounded-md border border-purple-400/40" style={{ background: '#f0e0ec' }}>
             <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs">
               <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#6e3a76' }}>
                 Außen gesamt (rosa) · ~220 m²
