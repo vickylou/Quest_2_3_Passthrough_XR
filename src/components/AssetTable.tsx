@@ -64,51 +64,77 @@ function AssetCard({
       className="w-full overflow-hidden rounded-lg border shadow-sm"
       style={{ borderColor: tone.border, background: tone.bg }}
     >
-      {/* Single column on phone (illustration is hidden anyway); two-column
-          on md+ where the right column hosts the illustration. Explicit
-          single-col on mobile avoids any leftover track sizing from the
-          1fr/auto template. */}
+      {/* Single column on phone (mobile illustration sits inline on the
+          right of the title/value block); two-column on md+ where the
+          right column hosts a full-height illustration well. */}
       <div className="grid grid-cols-1 gap-0 md:grid-cols-[1fr_auto]">
         {/* Left: title + value + percentages + nested breakdowns */}
         <div className="min-w-0 p-3 md:p-4">
-          <div className="mb-2 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <AssetTitle
-                name={asset.name}
-                onRename={(name) => onChange((a) => ({ ...a, name }))}
-                readOnly={readOnly}
-              />
-              {asset.notes && (
-                <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
-              )}
+          {/* Header / total / mobile illustration share a 2-column row on
+              phone so the image takes a small slice in the top-right
+              corner alongside title, notes, and total value. On md+ this
+              collapses to a single column because the illustration moves
+              into its own outer grid column. */}
+          <div className="mb-2 flex items-start gap-3 md:block">
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <AssetTitle
+                    name={asset.name}
+                    onRename={(name) => onChange((a) => ({ ...a, name }))}
+                    readOnly={readOnly}
+                  />
+                  {asset.notes && (
+                    <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
+                  )}
+                </div>
+                {!readOnly && (
+                  <button
+                    onClick={onRemove}
+                    className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+                    title="Remove asset"
+                    aria-label="Remove asset"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-end gap-3">
+                <TotalValueField
+                  value={asset.totalValue}
+                  onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
+                  readOnly={readOnly}
+                />
+                <span
+                  className={`pill ${sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
+                  title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+                >
+                  Σ {formatPercent(sum)}
+                </span>
+              </div>
             </div>
-            {!readOnly && (
-              <button
-                onClick={onRemove}
-                className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
-                title="Remove asset"
-                aria-label="Remove asset"
-              >
-                ×
-              </button>
-            )}
-          </div>
 
-          <div className="mb-2 flex items-end gap-3">
-            <TotalValueField
-              value={asset.totalValue}
-              onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
-              readOnly={readOnly}
-            />
-            <span
-              className={`pill ${sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
-              title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+            {/* Mobile-only illustration: ~22% of card width in the top-right
+                corner, spans the height of title + notes + total value
+                block via flex stretch. Hidden on md+ because the desktop
+                illustration lives in its own column on the right. */}
+            <div
+              className="flex w-20 shrink-0 items-center justify-center self-stretch overflow-hidden rounded-md md:hidden"
+              style={{ background: tone.imageBg }}
+              aria-hidden
             >
-              Σ {formatPercent(sum)}
-            </span>
+              <AssetIllustration
+                imageKey={asset.imageKey}
+                className="h-full w-full max-h-24 p-1"
+                tint={tone.accent}
+              />
+            </div>
           </div>
 
-          <PercentGrid asset={asset} onChange={onChange} readOnly={readOnly} />
+          <div className="mt-3">
+            <PercentGrid asset={asset} onChange={onChange} readOnly={readOnly} />
+          </div>
 
           {(hasBreakdown || isHouse) && (
             <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} readOnly={readOnly} />
@@ -124,7 +150,7 @@ function AssetCard({
           )}
         </div>
 
-        {/* Right: illustration well, ~doubled width vs the previous version */}
+        {/* Desktop-only illustration well (full card height). */}
         <div
           className="hidden border-l md:block md:w-72"
           style={{ background: tone.imageBg, borderColor: tone.border }}
