@@ -153,7 +153,6 @@ export function HelmhausSplit() {
   return (
     <ScaleCtx.Provider value={scales}>
     <div className="space-y-4 text-sm leading-relaxed text-slate-800">
-      <StickyBilanz />
       <Header />
       <Hero />
       <Section num={1} title="Bereichs-Schätzung">
@@ -175,56 +174,6 @@ export function HelmhausSplit() {
       <DetailedTable />
     </div>
     </ScaleCtx.Provider>
-  );
-}
-
-/**
- * Sticky banner that pins itself just under the app's sticky balance bar
- * (the indigo sister chips up top). Stays visible while the user scrolls
- * through the Helmhaus split panel, so the live Σ and Buyout-Paket
- * status are always in sight while editing values further down.
- */
-function StickyBilanz() {
-  const { helmhausTotal, package_, reset } = useScales();
-  const helmDiff = helmhausTotal - A.HELMHAUS_TOTAL;
-  const packDiff = package_ - PACKAGE_TARGET;
-  const helmGood = Math.abs(helmDiff) < 50;
-  const packGood = Math.abs(packDiff) < 50;
-  return (
-    <div
-      className="sticky z-30 -mx-3 border-y border-amber-300 bg-amber-50/95 px-3 py-2 shadow-sm backdrop-blur md:-mx-4 md:px-4"
-      style={{ top: '120px' }}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
-          Helmhaus-Bilanz
-        </span>
-        <div className="flex flex-wrap items-center gap-3 tabular-nums">
-          <span>
-            Σ <strong>{fmt(helmhausTotal)}</strong>{' '}
-            <span className={helmGood ? 'text-emerald-700' : 'text-rose-700'}>
-              {helmGood ? '✓' : `${helmDiff >= 0 ? '+' : ''}${fmt(helmDiff)}`}
-            </span>
-          </span>
-          <span>
-            Buy <strong>{fmt(package_)}</strong>{' '}
-            <span className={packGood ? 'text-emerald-700' : 'text-rose-700'}>
-              {packGood ? '✓' : `${packDiff >= 0 ? '+' : ''}${fmt(packDiff)}`}
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-50"
-          >
-            ↺ Reset
-          </button>
-        </div>
-      </div>
-      <div className="text-[10px] text-slate-500">
-        Ziel Σ {fmt(A.HELMHAUS_TOTAL)} · Buy {fmt(PACKAGE_TARGET)}
-      </div>
-    </div>
   );
 }
 
@@ -508,6 +457,7 @@ function EditableTotal({
   color?: string;
   size?: 'sm' | 'lg';
 }) {
+  const { helmhausTotal } = useScales();
   // stopPropagation prevents tapping the input from also toggling the
   // <details> ancestor — a real footgun when the EditableTotal sits in a
   // <summary>.
@@ -531,11 +481,13 @@ function EditableTotal({
         onClick={stop}
         onMouseDown={stop}
         onKeyDown={(e) => {
-          // prevent Space / Enter from toggling the parent <details>
           if (e.key === ' ' || e.key === 'Enter') stop(e);
         }}
         title="Editable — Lisa- / Vicky-Gesamt aktualisieren sich automatisch"
       />
+      <span className="text-[10px] tabular-nums text-slate-400 whitespace-nowrap">
+        Total {fmt(helmhausTotal)}
+      </span>
     </div>
   );
 }
