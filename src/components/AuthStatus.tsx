@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Author, AUTHORS } from '../types';
 import {
   getSession,
@@ -10,13 +10,14 @@ import { isCloudConfigured } from '../state/sync';
 import { SignIn } from './SignIn';
 import { IdentitySetup } from './IdentitySetup';
 import { useStore } from '../state/store';
+import { AuthorBadge, AUTHOR_META } from './AuthorBadge';
 import type { Session, User } from '@supabase/supabase-js';
 
 /**
- * Header chip that shows who's signed in (or prompts sign-in / role-pick).
- * Replaces the old "Viewing as" picker. The viewer's role is now derived
- * from the authenticated identity row on the server — impersonation by
- * switching a dropdown is no longer possible.
+ * Header avatar that shows who's signed in (or prompts sign-in / role-pick).
+ * On phone the trigger is just the colored AuthorBadge to save horizontal
+ * space; on desktop the role's name sits next to it. Tapping opens a small
+ * popover with the email and a sign-out button.
  */
 export function AuthStatus() {
   const setViewer = useStore((s) => s.setViewer);
@@ -26,6 +27,7 @@ export function AuthStatus() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showIdentity, setShowIdentity] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const configured = isCloudConfigured();
 
@@ -49,12 +51,27 @@ export function AuthStatus() {
     });
   }, [session, setViewer]);
 
+  // Close the menu when clicking outside.
+  useEffect(() => {
+    if (!showMenu) return;
+    function onDown(e: MouseEvent | TouchEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setShowMenu(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [showMenu]);
+
   if (!configured) return null;
 
   if (!session) {
     return (
       <>
-        <button className="btn" onClick={() => setShowSignIn(true)}>
+        <button className="btn btn-compact" onClick={() => setShowSignIn(true)}>
           Sign in
         </button>
         {showSignIn && <SignIn onCancel={() => setShowSignIn(false)} />}
@@ -63,35 +80,48 @@ export function AuthStatus() {
   }
 
   const author = role ? AUTHORS.find((a) => a.id === role) : null;
-  const label = loadingRole
-    ? 'Loading…'
-    : author
-      ? author.name
-      : 'Pick role';
 
   return (
-    <div className="relative">
+    <div ref={wrapRef} className="relative">
       <button
-        className="btn flex items-center gap-1"
+        className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-white/40"
         onClick={() => setShowMenu((v) => !v)}
         title={session.user.email ?? ''}
+        aria-haspopup="menu"
+        aria-expanded={showMenu}
       >
-        <span className="hidden sm:inline">Signed in as</span>
-        <strong>{label}</strong>
-        <span className="text-slate-400">▾</span>
+        {role ? (
+          <AuthorBadge author={role} size="md" />
+        ) : (
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-600 shadow-sm">
+            ?
+          </span>
+        )}
+        <span className="hidden text-sm font-medium md:inline">
+          {loadingRole ? 'Loading…' : author ? author.name : 'Pick role'}
+        </span>
       </button>
       {showMenu && (
         <div
-          className="absolute right-0 z-30 mt-1 w-60 rounded-md border border-slate-200 bg-white p-1 shadow-lg"
-          onMouseLeave={() => setShowMenu(false)}
+          role="menu"
+          className="absolute right-0 z-40 mt-1 w-64 rounded-md border border-slate-200 bg-white p-1 text-slate-800 shadow-lg"
         >
-          <div className="px-2 py-1 text-[11px] text-slate-500">
-            {session.user.email ?? session.user.id}
+          <div className="flex items-center gap-2 px-2 py-2">
+            {role && <AuthorBadge author={role} size="md" />}
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-slate-800">
+                {author ? author.name : 'No role yet'}
+              </div>
+              <div className="truncate text-[11px] text-slate-500">
+                {session.user.email ?? session.user.id}
+              </div>
+            </div>
           </div>
-          <div className="px-2 py-1 text-[10px] text-slate-400">
+          <div className="border-t border-slate-100 px-2 py-1 text-[10px] text-slate-400">
             Role is permanent on this account. To switch roles, sign out and sign in with another email.
           </div>
           <button
+            role="menuitem"
             className="block w-full rounded px-2 py-1.5 text-left text-sm text-rose-600 hover:bg-rose-50"
             onClick={async () => {
               setShowMenu(false);
@@ -117,6 +147,10 @@ export function AuthStatus() {
     </div>
   );
 }
+
+// AUTHOR_META export-only re-import so this file's role of "owns the avatar
+// trigger" is self-contained — keeps the badge in sync with the popover info.
+void AUTHOR_META;
 
 /** Pulls familyId from cloud config at render time so IdentitySetup stays purely presentational. */
 function IdentitySetupWrapper({
