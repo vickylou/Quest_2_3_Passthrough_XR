@@ -21,23 +21,23 @@ import { isCanonicalAsset } from '../state/persistence';
 
 const HOUSE_IDS = new Set<string>([HELMHAUS_ID, WEBERHAUS_ID]);
 
-const DEFAULT_SQUARE_METERS_PER_SPOT = 1083;
+const DEFAULT_TOTAL_SQUARE_METERS = 6500;
 const DEFAULT_AGRICULTURAL_EUR_PER_M2 = 40;
 const DEFAULT_BUILDING_EUR_PER_M2 = 692;
 
 const DEFAULT_AGRI_METRICS: LandSpotMetrics = {
-  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
 };
 const DEFAULT_BUILDING_METRICS: LandSpotMetrics = {
-  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_BUILDING_EUR_PER_M2,
 };
 
 const DEFAULT_BUILDING_CONFIG: BuildingConfig = {
   spots: 6,
-  valuePerSpot: DEFAULT_SQUARE_METERS_PER_SPOT * DEFAULT_AGRICULTURAL_EUR_PER_M2,
-  squareMetersPerSpot: DEFAULT_SQUARE_METERS_PER_SPOT,
+  valuePerSpot: (DEFAULT_TOTAL_SQUARE_METERS / 6) * DEFAULT_AGRICULTURAL_EUR_PER_M2,
+  totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
   perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
 };
@@ -56,19 +56,28 @@ function defaultMetricsForMode(mode: 'agricultural' | 'building'): LandSpotMetri
 
 /**
  * Read the current plot metrics out of a config. Falls back to defaults so
- * older saved data (which only had `valuePerSpot`) keeps working — in that
- * case we anchor m² at the default and back-derive €/m² from the legacy
- * value so the displayed total doesn't shift when we first show the
- * metric inputs.
+ * older saved data (which carried `squareMetersPerSpot` or only
+ * `valuePerSpot`) keeps working — in that case we lift the per-spot area
+ * back into a total area so the new "Total area" input shows a sensible
+ * number on first render.
  */
 function metricsFromConfig(config: BuildingConfig): LandSpotMetrics {
-  const m2 = config.squareMetersPerSpot ?? DEFAULT_SQUARE_METERS_PER_SPOT;
+  const total =
+    config.totalSquareMeters ??
+    (config.squareMetersPerSpot != null && config.spots > 0
+      ? config.squareMetersPerSpot * config.spots
+      : DEFAULT_TOTAL_SQUARE_METERS);
+  const m2PerSpot = config.spots > 0 ? total / config.spots : 0;
   const eurPerM2 =
     config.eurosPerSquareMeter ??
-    (config.valuePerSpot && m2 > 0
-      ? config.valuePerSpot / m2
+    (config.valuePerSpot && m2PerSpot > 0
+      ? config.valuePerSpot / m2PerSpot
       : DEFAULT_AGRICULTURAL_EUR_PER_M2);
-  return { squareMetersPerSpot: m2, eurosPerSquareMeter: eurPerM2 };
+  return { totalSquareMeters: total, eurosPerSquareMeter: eurPerM2 };
+}
+
+function valuePerSpotFromMetrics(spots: number, metrics: LandSpotMetrics): number {
+  return spots > 0 ? (metrics.totalSquareMeters / spots) * metrics.eurosPerSquareMeter : 0;
 }
 
 /**
@@ -97,12 +106,11 @@ function toggledLandAsset(asset: Asset): Asset {
       : asset.buildingSpotMetrics;
   const nextMetrics = incoming ?? defaultMetricsForMode(nextMode);
 
-  const nextValuePerSpot =
-    nextMetrics.squareMetersPerSpot * nextMetrics.eurosPerSquareMeter;
+  const nextValuePerSpot = valuePerSpotFromMetrics(config.spots, nextMetrics);
   const nextConfig: BuildingConfig = {
     ...config,
     valuePerSpot: nextValuePerSpot,
-    squareMetersPerSpot: nextMetrics.squareMetersPerSpot,
+    totalSquareMeters: nextMetrics.totalSquareMeters,
     eurosPerSquareMeter: nextMetrics.eurosPerSquareMeter,
   };
   return {
@@ -110,7 +118,7 @@ function toggledLandAsset(asset: Asset): Asset {
     ...savedFromCurrent,
     landMode: nextMode,
     buildingConfig: nextConfig,
-    totalValue: nextConfig.spots * nextConfig.valuePerSpot,
+    totalValue: nextConfig.totalSquareMeters! * nextConfig.eurosPerSquareMeter!,
     allocations: deriveAllocationsFromConfig(nextConfig),
   };
 }
@@ -526,8 +534,10 @@ function LandPlotsPanel({
 }) {
   const config = asset.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
   const liveMetrics = metricsFromConfig(config);
-  const valuePerSpot = liveMetrics.squareMetersPerSpot * liveMetrics.eurosPerSquareMeter;
-  const totalSquareMeters = config.spots * liveMetrics.squareMetersPerSpot;
+  const squareMetersPerSpot =
+    config.spots > 0 ? liveMetrics.totalSquareMeters / config.spots : 0;
+  const valuePerSpot = valuePerSpotFromMetrics(config.spots, liveMetrics);
+  const totalValue = liveMetrics.totalSquareMeters * liveMetrics.eurosPerSquareMeter;
   const allocatedSpots = PERSON_IDS.reduce(
     (acc, p) => acc + (config.perSister[p] ?? 0),
     0
@@ -536,30 +546,32 @@ function LandPlotsPanel({
   const overAllocated = remaining < 0;
 
   /**
-   * Apply a metrics edit. We always recompute valuePerSpot from m² × €/m²
-   * so the displayed Value/spot, the per-sister Euro figures, and the
-   * scenario's totalValue/allocations all stay consistent. The current
-   * mode's snapshot is updated alongside so a mode toggle round-trips.
+   * Apply a metrics edit. valuePerSpot is recomputed from
+   * (totalSquareMeters / spots) × eurosPerSquareMeter so the displayed
+   * Value/spot, per-sister Euro figures, and the scenario's totalValue
+   * stay consistent. The current mode's snapshot is updated alongside so
+   * toggling agri↔building round-trips both metrics.
    */
   function updateMetrics(next: LandSpotMetrics) {
     onChange((a) => {
       const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
+      const safe: LandSpotMetrics = {
+        totalSquareMeters: Math.max(0, next.totalSquareMeters),
+        eurosPerSquareMeter: Math.max(0, next.eurosPerSquareMeter),
+      };
       const newConfig: BuildingConfig = {
         ...cur,
-        squareMetersPerSpot: Math.max(0, next.squareMetersPerSpot),
-        eurosPerSquareMeter: Math.max(0, next.eurosPerSquareMeter),
-        valuePerSpot: Math.max(0, next.squareMetersPerSpot) * Math.max(0, next.eurosPerSquareMeter),
+        totalSquareMeters: safe.totalSquareMeters,
+        eurosPerSquareMeter: safe.eurosPerSquareMeter,
+        valuePerSpot: valuePerSpotFromMetrics(cur.spots, safe),
       };
       const snapshotKey =
         mode === 'agricultural' ? 'agriculturalSpotMetrics' : 'buildingSpotMetrics';
       return {
         ...a,
         buildingConfig: newConfig,
-        [snapshotKey]: {
-          squareMetersPerSpot: newConfig.squareMetersPerSpot ?? 0,
-          eurosPerSquareMeter: newConfig.eurosPerSquareMeter ?? 0,
-        },
-        totalValue: newConfig.spots * newConfig.valuePerSpot,
+        [snapshotKey]: safe,
+        totalValue: safe.totalSquareMeters * safe.eurosPerSquareMeter,
         allocations: deriveAllocationsFromConfig(newConfig),
       };
     });
@@ -569,11 +581,19 @@ function LandPlotsPanel({
     onChange((a) => {
       const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
       const safe = Math.max(0, Math.floor(spots));
-      const newConfig: BuildingConfig = { ...cur, spots: safe };
+      const m = metricsFromConfig(cur);
+      const newConfig: BuildingConfig = {
+        ...cur,
+        spots: safe,
+        valuePerSpot: valuePerSpotFromMetrics(safe, m),
+      };
       return {
         ...a,
         buildingConfig: newConfig,
-        totalValue: safe * newConfig.valuePerSpot,
+        // Total value depends only on total area × €/m², so changing the
+        // spot count does NOT change the asset's total — only the slice
+        // each plot represents.
+        totalValue: m.totalSquareMeters * m.eurosPerSquareMeter,
         allocations: deriveAllocationsFromConfig(newConfig),
       };
     });
@@ -586,10 +606,11 @@ function LandPlotsPanel({
         ...cur,
         perSister: { ...cur.perSister, [personId]: Math.max(0, Math.floor(value)) },
       };
+      const m = metricsFromConfig(newConfig);
       return {
         ...a,
         buildingConfig: newConfig,
-        totalValue: newConfig.spots * newConfig.valuePerSpot,
+        totalValue: m.totalSquareMeters * m.eurosPerSquareMeter,
         allocations: deriveAllocationsFromConfig(newConfig),
       };
     });
@@ -620,7 +641,7 @@ function LandPlotsPanel({
         </div>
         <div>
           <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-            m² / spot
+            Total area
           </label>
           <div className="relative mt-0.5">
             <input
@@ -628,11 +649,11 @@ function LandPlotsPanel({
               inputMode="decimal"
               min={0}
               className="field w-full py-1 pr-8 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
-              value={liveMetrics.squareMetersPerSpot}
+              value={liveMetrics.totalSquareMeters}
               onChange={(e) =>
                 updateMetrics({
                   ...liveMetrics,
-                  squareMetersPerSpot: Number(e.target.value) || 0,
+                  totalSquareMeters: Number(e.target.value) || 0,
                 })
               }
               onFocus={(e) => e.currentTarget.select()}
@@ -671,18 +692,25 @@ function LandPlotsPanel({
       </div>
 
       {/* Derived view of what those inputs come out to. Read-only so users
-          aren't tempted to type in here and create an inconsistency. */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-2 py-1 text-[11px]">
+          aren't tempted to type in here and create an inconsistency.
+          m² / spot is the total area divided evenly across all plots. */}
+      <div className="mb-2 grid grid-cols-3 gap-2 rounded bg-slate-50 px-2 py-1 text-[11px]">
         <span className="text-slate-600">
-          Value / spot{' '}
+          m² / spot{' '}
+          <strong className="tabular-nums text-slate-800">
+            {squareMetersPerSpot.toLocaleString('de-DE', { maximumFractionDigits: 0 })} m²
+          </strong>
+        </span>
+        <span className="text-slate-600">
+          € / spot{' '}
           <strong className="tabular-nums text-slate-800">
             € {valuePerSpot.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
           </strong>
         </span>
         <span className="text-slate-600">
-          Total area{' '}
+          Total{' '}
           <strong className="tabular-nums text-slate-800">
-            {totalSquareMeters.toLocaleString('de-DE', { maximumFractionDigits: 0 })} m²
+            € {totalValue.toLocaleString('de-DE', { maximumFractionDigits: 0 })}
           </strong>
         </span>
       </div>
