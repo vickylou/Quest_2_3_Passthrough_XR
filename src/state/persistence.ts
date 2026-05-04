@@ -66,18 +66,41 @@ const CANONICAL_TONES: Record<string, AssetTone> = {
   [LANDWIRTSCHAFT_ID]: 'orange',
 };
 
+/**
+ * The shorter (or empty) notes shown beneath each canonical asset's title
+ * on the card. Force-synced on load so existing scenarios in localStorage
+ * pick up edits made to the seed strings — there's no UI to edit notes,
+ * so this can't clobber user-typed text.
+ */
+const CANONICAL_NOTES: Record<string, string | undefined> = {
+  [HELMHAUS_ID]: undefined,
+  [WEBERHAUS_ID]: undefined,
+  [BAUGRUND_1_ID]: 'Vicky & Jackie',
+  [BAUGRUND_2_ID]: 'Alexa, no house yet',
+  [CASH_ID]: 'From sold plot, after renovation',
+  [LANDWIRTSCHAFT_ID]: '6 500 m² ≈ 40 €/m². Future upside if rezoned.',
+};
+
 function ensureCanonicalTones(state: PersistedState): PersistedState {
   let touched = false;
   const next: Record<string, Scenario> = {};
   for (const [id, sc] of Object.entries(state.scenarios)) {
     let scTouched = false;
     const newAssets = sc.assets.map((a) => {
-      const canonical = CANONICAL_TONES[a.id];
-      if (canonical && (!a.tone || a.tone === 'slate')) {
+      let updated = a;
+      const canonicalTone = CANONICAL_TONES[a.id];
+      if (canonicalTone && (!a.tone || a.tone === 'slate')) {
+        updated = { ...updated, tone: canonicalTone };
         scTouched = true;
-        return { ...a, tone: canonical };
       }
-      return a;
+      if (a.id in CANONICAL_NOTES) {
+        const wanted = CANONICAL_NOTES[a.id];
+        if (a.notes !== wanted) {
+          updated = { ...updated, notes: wanted };
+          scTouched = true;
+        }
+      }
+      return updated;
     });
     if (scTouched) {
       next[id] = { ...sc, assets: newAssets };

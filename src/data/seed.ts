@@ -24,7 +24,6 @@ export function defaultAssets(): Asset[] {
       tone: 'sky',
       subItems: [{ id: 'helm_renovation', label: 'Renovation costs', amount: 250_000 }],
       internalBreakdown: '',
-      notes: 'Existing Lisa / Vicky split. Renovation broken out below.',
     },
     {
       id: WEBERHAUS_ID,
@@ -34,7 +33,6 @@ export function defaultAssets(): Asset[] {
       imageKey: 'house',
       tone: 'rose',
       internalBreakdown: '',
-      notes: 'Split adjustable (e.g. 62 / 38).',
     },
     {
       id: BAUGRUND_1_ID,
@@ -43,7 +41,7 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ vicky: 50, jackie: 50 }),
       imageKey: 'plot',
       tone: 'amber',
-      notes: 'Shared between Vicky / Jackie.',
+      notes: 'Vicky & Jackie',
     },
     {
       id: BAUGRUND_2_ID,
@@ -52,7 +50,7 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ alexa: 100 }),
       imageKey: 'plot',
       tone: 'lime',
-      notes: 'Full plot for Alexa (no house yet).',
+      notes: 'Alexa, no house yet',
     },
     {
       id: CASH_ID,
@@ -61,7 +59,7 @@ export function defaultAssets(): Asset[] {
       allocations: alloc({ lisa: 61.64, vicky: 38.36 }),
       imageKey: 'cash',
       tone: 'emerald',
-      notes: 'Proceeds from the sold building plot, minus renovation contribution.',
+      notes: 'From sold plot, after renovation',
     },
     {
       id: LANDWIRTSCHAFT_ID,
