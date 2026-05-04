@@ -7,6 +7,7 @@ import { AssetIllustration } from './icons/AssetIllustration';
 import { HelmhausSplit } from './HelmhausSplit';
 import { toneStyle } from '../lib/tones';
 import { HELMHAUS_ID, WEBERHAUS_ID } from '../data/seed';
+import { isCanonicalAsset } from '../state/persistence';
 
 const HOUSE_IDS = new Set<string>([HELMHAUS_ID, WEBERHAUS_ID]);
 
@@ -89,7 +90,7 @@ function AssetCard({
                     <p className="mt-0.5 line-clamp-2 text-[11px] text-slate-500">{asset.notes}</p>
                   )}
                 </div>
-                {!readOnly && (
+                {!readOnly && !isCanonicalAsset(asset.id) && (
                   <button
                     onClick={onRemove}
                     className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
