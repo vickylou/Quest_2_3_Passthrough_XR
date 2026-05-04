@@ -384,13 +384,14 @@ function PersonShareCell({
         </span>
       </div>
       {/* Reserve a fixed slot for the suggestion line so accepting a hint
-          doesn't shrink the grid and shift the whole card upward — the
-          jump was disorienting on phone where the percent cells are
-          right under the user's thumb. */}
+          doesn't shrink the grid and shift the whole card upward — and
+          preventDefault on mousedown keeps focus on the percent input
+          so the iOS keyboard doesn't dismiss-and-reopen on every tap. */}
       <div className="mt-0.5 h-3.5 leading-none">
         {suggestion !== null && Math.abs(suggestion - percent) > 0.01 && (
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={onAcceptSuggestion}
             className="text-[10px] italic text-slate-400 hover:text-slate-700"
             title="Apply this value to balance to 100 %"
