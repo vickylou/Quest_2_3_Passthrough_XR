@@ -4,6 +4,7 @@ import { useIsActiveReadOnly, useStore } from '../state/store';
 import { formatEuro, formatEuroCompact, formatPercent, uid } from '../lib/format';
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
+import { HelmhausSplit } from './HelmhausSplit';
 import { toneStyle } from '../lib/tones';
 import { HELMHAUS_ID, WEBERHAUS_ID } from '../data/seed';
 
@@ -134,7 +135,21 @@ function AssetCard({
             <BreakdownPanel asset={asset} onChange={onChange} accent={tone.accent} readOnly={readOnly} />
           )}
 
-          {isHouse && (
+          {isHouse && asset.id === HELMHAUS_ID && (
+            <details
+              className="mt-2 rounded-md border bg-white"
+              style={{ borderColor: tone.accent + '33' }}
+            >
+              <summary className="cursor-pointer select-none px-3 py-1.5 text-xs font-medium text-slate-700">
+                ▸ Internal split (how the house is shared) — Bereichs-Schätzung
+              </summary>
+              <div className="border-t border-slate-200 p-3 md:p-4">
+                <HelmhausSplit />
+              </div>
+            </details>
+          )}
+
+          {isHouse && asset.id !== HELMHAUS_ID && (
             <InternalBreakdownPanel
               value={asset.internalBreakdown ?? ''}
               onChange={(v) => onChange((a) => ({ ...a, internalBreakdown: v }))}
