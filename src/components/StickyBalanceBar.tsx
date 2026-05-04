@@ -40,7 +40,14 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
       data-pdf-capture="balance-bar"
     >
       <div className="mx-auto max-w-6xl px-3 py-2 md:px-6">
-        <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
+        {/* Phone: 2 columns when collapsed for the at-a-glance read; one
+            column when expanded so each chip's breakdown has the full
+            width to render its asset / transfer / correction lines. */}
+        <div
+          className={`grid gap-1.5 md:grid-cols-4 ${
+            expanded ? 'grid-cols-1' : 'grid-cols-2'
+          }`}
+        >
           {PEOPLE.map((p) => (
             <SisterChip
               key={p.id}
