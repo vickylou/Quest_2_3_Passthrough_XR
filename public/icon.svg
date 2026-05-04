@@ -1,17 +1,31 @@
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Inheritance Calculator">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="lisa" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="vicky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="jackie" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="alexa" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333ea"/>
       <stop offset="100%" stop-color="#7c3aed"/>
     </linearGradient>
   </defs>
-  <!-- Rounded square so iOS doesn't double-mask the corners -->
+  <!-- Soft off-white square so the dots really pop -->
   <rect width="512" height="512" rx="100" fill="url(#bg)"/>
-  <!-- Four sister-colour dots in the corners -->
-  <circle cx="120" cy="120" r="44" fill="#16a34a"/>
-  <circle cx="392" cy="120" r="44" fill="#eab308"/>
-  <circle cx="120" cy="392" r="44" fill="#dc2626"/>
-  <circle cx="392" cy="392" r="44" fill="#9333ea"/>
-  <!-- € in the centre, white -->
-  <text x="256" y="350" font-family="Georgia, 'Times New Roman', serif" font-size="320" font-weight="700" fill="#ffffff" text-anchor="middle">€</text>
+  <!-- Four sister dots in a 2x2 grid: Lisa · Vicky / Jackie · Alexa -->
+  <circle cx="170" cy="170" r="86" fill="url(#lisa)"/>
+  <circle cx="342" cy="170" r="86" fill="url(#vicky)"/>
+  <circle cx="170" cy="342" r="86" fill="url(#jackie)"/>
+  <circle cx="342" cy="342" r="86" fill="url(#alexa)"/>
 </svg>
