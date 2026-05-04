@@ -7,16 +7,13 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
-  html,
-  body {
-    /* iOS Safari can introduce a ~1-2px horizontal scroll from any child
-       that overflows even slightly; clamp the viewport so the layout
-       always fits the device width. */
-    overflow-x: hidden;
-  }
   body {
     @apply bg-slate-50 text-slate-800 antialiased;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* `overflow-x: clip` instead of `hidden` prevents stray horizontal
+       scrolling on iPhone without breaking `position: sticky` for
+       descendants the way `overflow: hidden` does in Safari. */
+    overflow-x: clip;
   }
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
