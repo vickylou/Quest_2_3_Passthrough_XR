@@ -517,8 +517,11 @@ function byNameAsc(a: Scenario, b: Scenario): number {
 function pickerLabel(s: Scenario, tab: Tab): string {
   const status = statusBadge(s.status);
   const visibility = tab === 'mine' ? ` ${visibilityIcon(s.visibility)}` : '';
+  // On the Others tab, lead with "by Author —" so it's clear who created
+  // the scenario without having to read the optgroup heading or the chip.
+  const author = tab === 'others' ? `by ${authorName(s.author)} — ` : '';
   const meeting = s.meeting ? ` · 📅 ${s.meeting}` : '';
-  return `${s.name}${visibility}${status}${meeting}`;
+  return `${author}${s.name}${visibility}${status}${meeting}`;
 }
 
 function authorName(a: Author): string {
