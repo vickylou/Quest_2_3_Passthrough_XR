@@ -10,6 +10,7 @@ import {
   Visibility,
 } from '../types';
 import { defaultState, exampleState, loadState, saveState } from './persistence';
+import { blankScenario } from '../data/seed';
 import { uid } from '../lib/format';
 import { syncDelete, syncPushOne } from './sync';
 
@@ -33,6 +34,7 @@ interface StoreState extends PersistedState {
   // ---- mutations ----
   setActive: (id: string) => void;
   updateActive: (mut: (s: Scenario) => Scenario) => void;
+  addBlankScenario: () => string;
   saveAsNew: (overrides?: Partial<Scenario>) => string;
   duplicateActive: () => void;
   renameActive: (name: string) => void;
@@ -107,6 +109,21 @@ export const useStore = create<StoreState>()((set, get) => ({
       if (next.visibility !== 'private') schedulePush(next, next.visibility);
       return persisted;
     }),
+
+  addBlankScenario: () => {
+    const id = uid('scn');
+    let savedId = id;
+    set((s) => {
+      const blank = { ...blankScenario(s.viewerId), id, createdAt: Date.now(), updatedAt: Date.now() };
+      savedId = id;
+      return persistAndReturn({
+        ...s,
+        scenarios: { ...s.scenarios, [id]: blank },
+        activeId: id,
+      });
+    });
+    return savedId;
+  },
 
   saveAsNew: (overrides) => {
     const id = uid('scn');
@@ -291,7 +308,7 @@ export const useStore = create<StoreState>()((set, get) => ({
         void syncDelete(id);
       }
       const ids = Object.keys(remaining);
-      if (ids.length === 0) return persistAndReturn(defaultState());
+      if (ids.length === 0) return persistAndReturn(defaultState(s.viewerId));
       const activeId = s.activeId === id ? ids[0] : s.activeId;
       return persistAndReturn({ ...s, scenarios: remaining, activeId });
     }),
@@ -341,19 +358,21 @@ export const useStore = create<StoreState>()((set, get) => ({
       return persisted;
     }),
 
-  resetToDefault: () => set(() => persistAndReturn(defaultState())),
+  resetToDefault: () =>
+    set((s) => persistAndReturn(defaultState(s.viewerId))),
 
-  loadExample: () => set(() => persistAndReturn(exampleState())),
+  loadExample: () =>
+    set((s) => persistAndReturn(exampleState(s.viewerId))),
 
   clearAll: () =>
-    set(() => {
+    set((s) => {
       try {
         localStorage.removeItem('inheritance.v1');
         localStorage.removeItem('inheritance.v2');
       } catch {
         /* ignore */
       }
-      return persistAndReturn(defaultState());
+      return persistAndReturn(defaultState(s.viewerId));
     }),
 
   replaceAll: (state) => set(() => persistAndReturn(state)),
