@@ -1,4 +1,7 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { HELMHAUS_ID } from '../data/seed';
+import { useStore } from '../state/store';
+import type { HelmhausSplitValues } from '../types';
 
 /**
  * Detailed Helmhaus internal-split panel — replaces the free-text
@@ -83,12 +86,76 @@ const fmt = (n: number) =>
   });
 
 export function HelmhausSplit() {
-  const [egTotal, setEgTotal] = useState<number>(A.EG_TOTAL);
-  const [ogLisa, setOgLisa] = useState<number>(A.OG_LISA);
-  const [ogVicky, setOgVicky] = useState<number>(A.OG_VICKY);
-  const [praxisFull, setPraxisFull] = useState<number>(A.PRAXIS_FULL);
-  const [dgFull, setDgFull] = useState<number>(A.DG_FULL);
-  const [garageTotal, setGarageTotal] = useState<number>(A.LISA_GARAGE + A.VICKY_GARAGE);
+  // Read the persisted Helmhaus split from the active scenario's Helmhaus
+  // asset (if any). Fall back to the appraisal anchors. We sync changes
+  // back to the store via useEffect below — that way the values survive
+  // a refresh / redeploy / cloud-sync.
+  const stored = useStore((s) => {
+    const sc = s.scenarios[s.activeId];
+    return sc?.assets.find((a) => a.id === HELMHAUS_ID)?.helmhausSplit;
+  });
+  const updateAsset = useStore((s) => s.updateAsset);
+
+  const initial = stored ?? {
+    egTotal: A.EG_TOTAL,
+    ogLisa: A.OG_LISA,
+    ogVicky: A.OG_VICKY,
+    praxisFull: A.PRAXIS_FULL,
+    dgFull: A.DG_FULL,
+    garageTotal: A.LISA_GARAGE + A.VICKY_GARAGE,
+  };
+
+  const [egTotal, setEgTotal] = useState<number>(initial.egTotal);
+  const [ogLisa, setOgLisa] = useState<number>(initial.ogLisa);
+  const [ogVicky, setOgVicky] = useState<number>(initial.ogVicky);
+  const [praxisFull, setPraxisFull] = useState<number>(initial.praxisFull);
+  const [dgFull, setDgFull] = useState<number>(initial.dgFull);
+  const [garageTotal, setGarageTotal] = useState<number>(initial.garageTotal);
+
+  // When the active scenario changes (or on first mount where stored exists)
+  // pull the persisted values into local state so the inputs reflect what's
+  // saved. Tracked separately from the persist effect below to avoid a
+  // ping-pong loop.
+  const activeId = useStore((s) => s.activeId);
+  const seenActiveId = useRef<string | null>(null);
+  useEffect(() => {
+    if (seenActiveId.current === activeId) return;
+    seenActiveId.current = activeId;
+    if (stored) {
+      setEgTotal(stored.egTotal);
+      setOgLisa(stored.ogLisa);
+      setOgVicky(stored.ogVicky);
+      setPraxisFull(stored.praxisFull);
+      setDgFull(stored.dgFull);
+      setGarageTotal(stored.garageTotal);
+    }
+  }, [activeId, stored]);
+
+  // Persist any change back to the active scenario's Helmhaus asset
+  // (debounced a touch so each keystroke doesn't fire a sync push). The
+  // Asset already syncs through the existing scenario-write path, so
+  // cloud sync picks this up automatically for non-private scenarios.
+  // Skip the very first run so we don't write defaults to a scenario the
+  // user hasn't touched.
+  const skipInitial = useRef(true);
+  useEffect(() => {
+    if (skipInitial.current) {
+      skipInitial.current = false;
+      return;
+    }
+    const next: HelmhausSplitValues = {
+      egTotal,
+      ogLisa,
+      ogVicky,
+      praxisFull,
+      dgFull,
+      garageTotal,
+    };
+    const id = setTimeout(() => {
+      updateAsset(HELMHAUS_ID, (a) => ({ ...a, helmhausSplit: next }));
+    }, 300);
+    return () => clearTimeout(id);
+  }, [egTotal, ogLisa, ogVicky, praxisFull, dgFull, garageTotal, updateAsset]);
 
   const scales: Scales = useMemo(() => {
     const s_eg = egTotal / A.EG_TOTAL;
@@ -1035,93 +1102,87 @@ function FloorKGGarage() {
 function FloorDG() {
   const { dgFull, setDgFull } = useScales();
   return (
-    <div
-      className="rounded-xl border p-4 shadow-sm"
-      style={{
-        background: 'linear-gradient(135deg, #fff8ec 0%, #fdf2db 100%)',
-        borderColor: '#f5e3c5',
-      }}
+    <FloorCard
+      badge="DG · Dachgeschoss"
+      badgeColor="#c98b3a"
+      title="Gesamtwert"
+      totalValue={<EditableTotal value={dgFull} onChange={setDgFull} color="#c98b3a" />}
+      image="dg.jpg"
+      imageAlt="DG Grundriss · unausgebaut"
+      colorLegend={
+        <>
+          <LegendItem color="#a4c3e3" border="#5a8fd6">
+            Blau = Lisa-Anteil <small className="text-slate-500">(noch nicht eingefärbt im Plan)</small>
+          </LegendItem>
+        </>
+      }
     >
-      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
-        <span
-          className="rounded-md border bg-white px-3 py-1 text-xs font-bold tracking-wide"
-          style={{ color: '#c98b3a', borderColor: '#c98b3a' }}
+      <PartySection side="lisa" label="Lisa-Anteil DG (blau) · ~120 m² brutto" value={fmt(dgFull)}>
+        <SubExp
+          label="Gebäude-Anteil DG"
+          smallLabel="(Bauwerk-Substanz)"
+          value={fmt(40_000)}
         >
-          DG · Dachgeschoss
-        </span>
-        <h4 className="m-0 flex-1 text-sm font-medium text-slate-500">Gesamtwert</h4>
-        <EditableTotal value={dgFull} onChange={setDgFull} color="#c98b3a" />
-      </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_280px]">
-        <div className="space-y-2">
-        <PartySection side="lisa" label="Lisa-Anteil DG (blau) · ~120 m² brutto" value={fmt(dgFull)}>
-          <SubExp
-            label="Gebäude-Anteil DG"
-            smallLabel="(Bauwerk-Substanz)"
+          <SubRow
+            name={
+              <>
+                <ColorDot color="#a4c3e3" border="#5a8fd6" />
+                Bauwerk-Wert (Substanz + Ausbauoption)
+              </>
+            }
             value={fmt(40_000)}
-          >
-            <SubRow
-              name={
-                <>
-                  <ColorDot color="#a4c3e3" border="#5a8fd6" />
-                  Bauwerk-Wert (Substanz + Ausbauoption)
-                </>
-              }
-              value={fmt(40_000)}
-            />
-            <SubRow name="Bruttofläche" value="~120 m²" />
-            <SubRow name="Ausbaubar (mit Dachschräge)" value="~40–50 m²" />
-            <SubRow name="Erschließung" value="via OG-Aufgang (Lisa-Stiege)" />
-          </SubExp>
-          <SubExp
-            label="Boden-Anteil DG"
-            smallLabel="(2,4 % vom gew. Sachwert)"
-            value={fmt(13_780)}
-          >
-            <Calc>
-              DG-Sachwert: <strong>{fmt(40_000)}</strong>
-              <br />
-              Anteil am gew. Sachwert (Faktor 0,3): 12.000 / 505.800 = <strong>2,4 %</strong>
-              <br />
-              Boden-Anteil: 2,4 % × {fmt(581_600)} = <strong>{fmt(13_780)}</strong>
-            </Calc>
-          </SubExp>
-          <SubExp label="Markt-Anteil DG" smallLabel="(2,4 % vom Markt)" value={fmt(3_040)}>
-            <Calc>
-              Anteil am gew. Sachwert: <strong>2,4 %</strong>
-              <br />
-              Markt-Anteil: 2,4 % × {fmt(128_341)} = <strong>{fmt(3_040)}</strong>
-            </Calc>
-          </SubExp>
-        </PartySection>
-        <div className="rounded-md bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
-          <strong>So wie es ist ({fmt(40_000)}):</strong> Bauwerk-Substanz + Ausbauoption für ~40–50
-          m² Wohnfläche · im Sachwert {fmt(581_200)} enthalten.
-          <br />
-          <strong>Höhe:</strong> Steiles Walmdach · volle Raumhöhe nur im mittleren Drittel · für
-          volle 120 m² wäre Dachanhebung/Gauben nötig.
-        </div>
-        </div>
-        <div>
-          <FloorImage src={IMG + 'dg.jpg'} alt="DG Grundriss · unausgebaut" />
-          <details className="mt-2">
-            <summary className="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
-              🎨 Farb-Erklärung
-            </summary>
-            <ul className="m-0 mt-1 list-none rounded-md bg-slate-50 p-3 text-xs">
-              <LegendItem color="#a4c3e3" border="#5a8fd6">
-                Blau = Lisa-Anteil <small className="text-slate-500">(noch nicht eingefärbt im Plan)</small>
-              </LegendItem>
-            </ul>
-          </details>
-        </div>
+          />
+          <SubRow name="Bruttofläche" value="~120 m²" />
+          <SubRow name="Ausbaubar (mit Dachschräge)" value="~40–50 m²" />
+          <SubRow name="Erschließung" value="via OG-Aufgang (Lisa-Stiege)" />
+        </SubExp>
+        <SubExp
+          label="Boden-Anteil DG"
+          smallLabel="(2,4 % vom gew. Sachwert)"
+          value={fmt(13_780)}
+        >
+          <Calc>
+            DG-Sachwert: <strong>{fmt(40_000)}</strong>
+            <br />
+            Anteil am gew. Sachwert (Faktor 0,3): 12.000 / 505.800 = <strong>2,4 %</strong>
+            <br />
+            Boden-Anteil: 2,4 % × {fmt(581_600)} = <strong>{fmt(13_780)}</strong>
+          </Calc>
+        </SubExp>
+        <SubExp label="Markt-Anteil DG" smallLabel="(2,4 % vom Markt)" value={fmt(3_040)}>
+          <Calc>
+            Anteil am gew. Sachwert: <strong>2,4 %</strong>
+            <br />
+            Markt-Anteil: 2,4 % × {fmt(128_341)} = <strong>{fmt(3_040)}</strong>
+          </Calc>
+        </SubExp>
+      </PartySection>
+      <div className="rounded-md bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+        <strong>So wie es ist ({fmt(40_000)}):</strong> Bauwerk-Substanz + Ausbauoption für ~40–50
+        m² Wohnfläche · im Sachwert {fmt(581_200)} enthalten.
+        <br />
+        <strong>Höhe:</strong> Steiles Walmdach · volle Raumhöhe nur im mittleren Drittel · für
+        volle 120 m² wäre Dachanhebung/Gauben nötig.
       </div>
-    </div>
+    </FloorCard>
   );
 }
 
 function TotalOverview() {
-  const { lisaTotal, vickyTotal, helmhausTotal, package_, reset } = useScales();
+  const {
+    egTotal,
+    ogLisa,
+    ogVicky,
+    praxisFull,
+    dgFull,
+    lisaGarage,
+    vickyGarage,
+    lisaTotal,
+    vickyTotal,
+    helmhausTotal,
+    package_,
+    reset,
+  } = useScales();
   const lisaPct = helmhausTotal > 0 ? (lisaTotal / helmhausTotal) * 100 : 0;
   const vickyPct = helmhausTotal > 0 ? (vickyTotal / helmhausTotal) * 100 : 0;
   const helmhausDiff = helmhausTotal - A.HELMHAUS_TOTAL;
@@ -1135,76 +1196,25 @@ function TotalOverview() {
           name="Lisa"
           pct={`~${lisaPct.toFixed(0)} % Anteil`}
           total={fmt(lisaTotal)}
-          gebaeudeTotal={fmt(445_750)}
-          bodenTotal={fmt(414_840)}
-          marktTotal={fmt(91_540)}
-          gebaeudeBreakdown={[
-            { label: 'EG (Wohnung + Außen)', value: fmt(250_400) },
-            { label: 'OG · Lisa-Teil (Wohnung)', value: fmt(53_300) },
-            { label: 'KG · Lisa-Anteil (Praxis + ½ Garage)', value: fmt(101_700) },
-            { label: 'DG (Bauwerk-Substanz)', value: fmt(40_000) },
-            { label: 'Garten allgemein 50 %', value: fmt(350) },
+          items={[
+            { label: 'EG · Erdgeschoss', value: fmt(egTotal) },
+            { label: 'OG · Lisa-Teil', value: fmt(ogLisa) },
+            { label: 'KG · Praxis', value: fmt(praxisFull) },
+            { label: 'KG · ½ Garage (Lisa-Anteil)', value: fmt(lisaGarage) },
+            { label: 'DG · Dachgeschoss', value: fmt(dgFull) },
+            { label: '½ Garten allgemein', value: fmt(A.ALLG_HALF) },
           ]}
-          bodenCalc={
-            <>
-              Lisa-Anteil am Sachwert: <strong>~71,3 %</strong>
-              <br />
-              Boden-Anteil: 71,3 % × {fmt(581_600)} = <strong>{fmt(414_840)}</strong>
-              <br />
-              <em>
-                (EG {fmt(287_950)} + OG-Lisa {fmt(61_290)} + KG-Lisa {fmt(51_410)} + DG{' '}
-                {fmt(13_780)} + ½Allg {fmt(410)})
-              </em>
-            </>
-          }
-          marktCalc={
-            <>
-              Lisa-Anteil am Sachwert: <strong>~71,3 %</strong>
-              <br />
-              Markt-Anteil: 71,3 % × {fmt(128_341)} = <strong>{fmt(91_540)}</strong>
-              <br />
-              <em>
-                (EG {fmt(63_540)} + OG-Lisa {fmt(13_520)} + KG-Lisa {fmt(11_350)} + DG {fmt(3_040)}{' '}
-                + ½Allg {fmt(90)})
-              </em>
-            </>
-          }
         />
         <PartyTotal
           side="vicky"
           name="Vicky"
           pct={`~${vickyPct.toFixed(0)} % Anteil`}
           total={fmt(vickyTotal)}
-          gebaeudeTotal={fmt(165_450)}
-          bodenTotal={fmt(166_810)}
-          marktTotal={fmt(36_820)}
-          gebaeudeBreakdown={[
-            { label: 'OG · Vicky-Teil (Wohnung + Außen)', value: fmt(139_600) },
-            { label: 'KG · Vicky-Anteil (½ Garage + Lager)', value: fmt(25_500) },
-            { label: 'Garten allgemein 50 %', value: fmt(350) },
+          items={[
+            { label: 'OG · Vicky-Teil', value: fmt(ogVicky) },
+            { label: 'KG · ½ Garage + Lager (Vicky-Anteil)', value: fmt(vickyGarage) },
+            { label: '½ Garten allgemein', value: fmt(A.ALLG_HALF) },
           ]}
-          bodenCalc={
-            <>
-              Vicky-Anteil am Sachwert: <strong>~28,7 %</strong>
-              <br />
-              Boden-Anteil: 28,7 % × {fmt(581_600)} = <strong>{fmt(166_810)}</strong>
-              <br />
-              <em>
-                (OG-Vicky {fmt(160_530)} + KG-Vicky {fmt(5_870)} + ½Allg {fmt(410)})
-              </em>
-            </>
-          }
-          marktCalc={
-            <>
-              Vicky-Anteil am Sachwert: <strong>~28,7 %</strong>
-              <br />
-              Markt-Anteil: 28,7 % × {fmt(128_341)} = <strong>{fmt(36_820)}</strong>
-              <br />
-              <em>
-                (OG-Vicky {fmt(35_430)} + KG-Vicky {fmt(1_300)} + ½Allg {fmt(90)})
-              </em>
-            </>
-          }
         />
       </div>
 
@@ -1264,23 +1274,13 @@ function PartyTotal({
   name,
   pct,
   total,
-  gebaeudeTotal,
-  bodenTotal,
-  marktTotal,
-  gebaeudeBreakdown,
-  bodenCalc,
-  marktCalc,
+  items,
 }: {
   side: 'lisa' | 'vicky';
   name: string;
   pct: string;
   total: string;
-  gebaeudeTotal: string;
-  bodenTotal: string;
-  marktTotal: string;
-  gebaeudeBreakdown: { label: string; value: string }[];
-  bodenCalc: React.ReactNode;
-  marktCalc: React.ReactNode;
+  items: { label: string; value: string }[];
 }) {
   const colors =
     side === 'lisa'
@@ -1306,27 +1306,21 @@ function PartyTotal({
         {name}-Gesamt
       </h5>
       <div className="mt-1 text-2xl font-bold tabular-nums">{total}</div>
-      <div className="text-xs text-slate-500">Gebäude + Boden + Markt + Allgemein-Garten</div>
 
-      <div className="mt-3 space-y-2">
-        <SubExp
-          label="Gebäude-Anteil gesamt"
-          smallLabel="(inkl. Außen + Allgemein 50 %)"
-          value={gebaeudeTotal}
-        >
-          {gebaeudeBreakdown.map((row, i) => (
-            <SubRow key={i} name={row.label} value={row.value} />
-          ))}
-        </SubExp>
-        <SubExp label="Boden-Anteil gesamt" value={bodenTotal}>
-          <Calc>{bodenCalc}</Calc>
-        </SubExp>
-        <SubExp label="Markt-Anteil gesamt" value={marktTotal}>
-          <Calc>{marktCalc}</Calc>
-        </SubExp>
-      </div>
+      <ul className="m-0 mt-3 list-none space-y-1 text-xs">
+        {items.map((row, i) => (
+          <li
+            key={i}
+            className="flex items-baseline justify-between gap-2 border-b border-dotted border-slate-300/60 py-1 last:border-b-0"
+          >
+            <span className="text-slate-600">{row.label}</span>
+            <span className="font-semibold tabular-nums">{row.value}</span>
+          </li>
+        ))}
+      </ul>
+
       <div className="mt-3 flex items-center justify-between gap-2 rounded-md bg-black/5 px-3 py-2 text-sm font-bold">
-        <span>{name}-Gesamt</span>
+        <span>Σ {name}-Gesamt</span>
         <span className="tabular-nums">{total}</span>
       </div>
     </div>

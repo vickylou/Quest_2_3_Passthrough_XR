@@ -60,6 +60,22 @@ export interface Asset {
    */
   internalBreakdown?: string;
   notes?: string;
+  /**
+   * Per-floor card totals for the rich Helmhaus internal-split panel.
+   * Only populated on the Helmhaus asset; other assets ignore it. When
+   * present these values override the appraisal anchors so the user's
+   * tweaks survive a refresh / redeploy / cloud-sync cycle.
+   */
+  helmhausSplit?: HelmhausSplitValues;
+}
+
+export interface HelmhausSplitValues {
+  egTotal: number;
+  ogLisa: number;
+  ogVicky: number;
+  praxisFull: number;
+  dgFull: number;
+  garageTotal: number;
 }
 
 export type AssetTone =
