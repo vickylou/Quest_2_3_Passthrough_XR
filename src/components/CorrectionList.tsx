@@ -1,5 +1,7 @@
 import { PEOPLE, PersonId } from '../types';
 import { useIsActiveReadOnly, useStore } from '../state/store';
+import { SectionIllustration } from './icons/SectionIllustration';
+import { toneStyle } from '../lib/tones';
 
 export function CorrectionList() {
   const corrections = useStore((s) => s.scenarios[s.activeId].corrections);
@@ -7,18 +9,28 @@ export function CorrectionList() {
   const remove = useStore((s) => s.removeCorrection);
   const add = useStore((s) => s.addCorrection);
   const readOnly = useIsActiveReadOnly();
+  const tone = toneStyle('amber');
 
   return (
     <section className="card">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-semibold">Corrections</h2>
-          <p className="text-xs text-slate-500">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Corrections</h2>
+            {!readOnly && <button onClick={add} className="btn">+ Correction</button>}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
             Optional adjustments per person — historical support, special benefits, or assumptions.
             Active rows count toward the final balance.
           </p>
         </div>
-        {!readOnly && <button onClick={add} className="btn">+ Correction</button>}
+        <div
+          className="flex w-32 shrink-0 items-center justify-center self-stretch overflow-hidden rounded-md md:w-40"
+          style={{ background: tone.imageBg }}
+          aria-hidden
+        >
+          <SectionIllustration kind="correction" tint={tone.accent} className="h-full w-full max-h-24 p-1 md:max-h-28" />
+        </div>
       </div>
 
       <div className="space-y-1.5">

@@ -1,5 +1,7 @@
 import { PEOPLE, PersonId, TransferSource } from '../types';
 import { useIsActiveReadOnly, useStore } from '../state/store';
+import { SectionIllustration } from './icons/SectionIllustration';
+import { toneStyle } from '../lib/tones';
 
 const SOURCE_OPTIONS: { value: NonNullable<TransferSource>; label: string }[] = [
   ...PEOPLE.map((p) => ({ value: p.id as NonNullable<TransferSource>, label: p.name })),
@@ -14,18 +16,28 @@ export function TransferList() {
   const remove = useStore((s) => s.removeTransfer);
   const add = useStore((s) => s.addTransfer);
   const readOnly = useIsActiveReadOnly();
+  const tone = toneStyle('violet');
 
   return (
     <section className="card">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-semibold">Direct payments</h2>
-          <p className="text-xs text-slate-500">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Direct payments</h2>
+            {!readOnly && <button onClick={add} className="btn">+ Payment</button>}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
             Money flowing between people (equalisation payments, parental support, etc.). When the
             sender is one of the four sisters her balance shrinks; Mum / Dad senders are external.
           </p>
         </div>
-        {!readOnly && <button onClick={add} className="btn">+ Payment</button>}
+        <div
+          className="flex w-32 shrink-0 items-center justify-center self-stretch overflow-hidden rounded-md md:w-40"
+          style={{ background: tone.imageBg }}
+          aria-hidden
+        >
+          <SectionIllustration kind="transfer" tint={tone.accent} className="h-full w-full max-h-24 p-1 md:max-h-28" />
+        </div>
       </div>
 
       <div className="space-y-1.5">
