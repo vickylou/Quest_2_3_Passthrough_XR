@@ -21,7 +21,7 @@ const SOURCE_LABEL: Record<NonNullable<TransferSource>, string> = {
   mum_and_dad: 'Mum & Dad',
 };
 
-export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: boolean }) {
+export function StickyBalanceBar() {
   const scenario = useStore((s) => s.scenarios[s.activeId]);
   const balances = useMemo(() => computeBalances(scenario), [scenario]);
   const [expanded, setExpanded] = useState(false);
@@ -29,21 +29,20 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
   const score = fairnessScore(balances);
   const maxDev = maxDeviation(balances);
 
-  // When the header collapses on mobile, slide the bar up to fill the gap;
-  // on md+ the header doesn't collapse so the bar stays anchored just below
-  // it like before. When expanded on phone the bar can grow beyond the
-  // viewport (4 chips × breakdown) — releasing sticky in that case lets the
-  // user scroll the bar like normal page content so the Hide button always
-  // remains reachable. md+ keeps sticky regardless because there's room.
+  // The header is now always visible (no hide-on-scroll), so the bar
+  // sits just under it on phone (44px tall) and on md+ (60px tall).
+  // When expanded on phone the bar can grow beyond the viewport
+  // (4 chips × breakdown) — releasing sticky in that case lets the
+  // user scroll the bar like normal page content so the Hide button
+  // always remains reachable. md+ keeps sticky regardless because
+  // there's room.
   const stickyClass = expanded
     ? 'relative md:sticky md:top-[60px]'
-    : headerHidden
-      ? 'sticky top-0 md:top-[60px]'
-      : 'sticky top-[44px] md:top-[60px]';
+    : 'sticky top-[44px] md:top-[60px]';
 
   return (
     <div
-      className={`${stickyClass} z-20 border-b border-indigo-200 bg-indigo-50/95 backdrop-blur transition-[top] duration-200`}
+      className={`${stickyClass} z-20 border-b border-slate-700 bg-slate-800 text-slate-100`}
       data-pdf-capture="balance-bar"
     >
       <div className="mx-auto max-w-6xl px-3 py-2 md:px-6">
@@ -51,21 +50,21 @@ export function StickyBalanceBar({ headerHidden = false }: { headerHidden?: bool
             chips grid so the Hide breakdown button is always the first
             interactive element when the bar is expanded — even if the
             chip breakdowns push the rest off-screen. */}
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
           <span>
             Goal{' '}
-            <span className="font-semibold tabular-nums text-slate-800">
+            <span className="font-semibold tabular-nums text-white">
               {formatEuroCompact(balances.equalTarget)}
             </span>
           </span>
           <span className="hidden sm:inline">
-            max Δ <span className="tabular-nums text-slate-800">{formatEuroCompact(maxDev)}</span>
+            max Δ <span className="tabular-nums text-white">{formatEuroCompact(maxDev)}</span>
           </span>
           <span>
-            Fairness <span className="font-semibold text-slate-800">{score}/100</span>
+            Fairness <span className="font-semibold text-white">{score}/100</span>
           </span>
           <button
-            className="inline-flex items-center gap-1 rounded-md border border-indigo-300 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="inline-flex items-center gap-1 rounded-md border border-indigo-400 bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
           >
