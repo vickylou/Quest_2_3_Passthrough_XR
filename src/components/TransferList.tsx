@@ -88,6 +88,7 @@ export function TransferList() {
                 inputMode="decimal"
                 value={t.amount}
                 onChange={(e) => update(t.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))}
+                onFocus={(e) => e.currentTarget.select()}
                 disabled={readOnly}
               />
               <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
