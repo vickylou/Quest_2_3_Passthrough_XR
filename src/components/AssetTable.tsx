@@ -100,19 +100,13 @@ function AssetCard({
                 )}
               </div>
 
-              <div className="flex items-end gap-3">
-                <TotalValueField
-                  value={asset.totalValue}
-                  onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
-                  readOnly={readOnly}
-                />
-                <span
-                  className={`pill ${sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}
-                  title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
-                >
-                  Σ {formatPercent(sum)}
-                </span>
-              </div>
+              <TotalValueField
+                value={asset.totalValue}
+                onChange={(v) => onChange((a) => ({ ...a, totalValue: v }))}
+                readOnly={readOnly}
+                sum={sum}
+                sumOff={sumOff}
+              />
             </div>
 
             {/* Mobile-only illustration: roughly square thumbnail in the
@@ -226,21 +220,35 @@ function TotalValueField({
   value,
   onChange,
   readOnly,
+  sum,
+  sumOff,
 }: {
   value: number;
   onChange: (v: number) => void;
   readOnly: boolean;
+  sum: number;
+  sumOff: boolean;
 }) {
   return (
     <div>
-      <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
-        Total value
-      </label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          Total value
+        </label>
+        <span
+          className={`pill px-1.5 py-0 text-[9px] ${
+            sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+          }`}
+          title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+        >
+          Σ {formatPercent(sum)}
+        </span>
+      </div>
       <div className="relative mt-0.5">
         <input
           type="number"
           inputMode="decimal"
-          className="field w-28 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
+          className="field w-32 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
           disabled={readOnly}
