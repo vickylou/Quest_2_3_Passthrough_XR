@@ -126,11 +126,13 @@ export function ScenarioBar() {
           loadExample={loadExample}
           openSaveModal={() => setShowSaveModal(true)}
           openShareLink={() => setShareInfo({ url: buildShareUrl(active), copied: false })}
+          addBlankScenario={addBlankScenario}
         />
       ) : (
         <OthersToolbar
           active={active}
           duplicateActive={duplicateActive}
+          addBlankScenario={addBlankScenario}
         />
       )}
 
@@ -397,6 +399,7 @@ function MineToolbar({
   loadExample,
   openSaveModal,
   openShareLink,
+  addBlankScenario,
 }: {
   active: Scenario;
   renaming: boolean;
@@ -412,6 +415,7 @@ function MineToolbar({
   loadExample: () => void;
   openSaveModal: () => void;
   openShareLink: () => void;
+  addBlankScenario: () => void;
 }) {
   return (
     <>
@@ -457,6 +461,15 @@ function MineToolbar({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {!renaming && (
+          <button
+            className="btn btn-compact bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+            onClick={addBlankScenario}
+            title="Start a fresh scenario from a blank slate"
+          >
+            + New scenario
+          </button>
+        )}
         {!renaming ? (
           <button
             className="btn btn-compact"
@@ -540,9 +553,11 @@ function MineToolbar({
 function OthersToolbar({
   active,
   duplicateActive,
+  addBlankScenario,
 }: {
   active: Scenario;
   duplicateActive: () => void;
+  addBlankScenario: () => void;
 }) {
   return (
     <>
@@ -554,6 +569,13 @@ function OthersToolbar({
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <button
+          className="btn btn-compact bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+          onClick={addBlankScenario}
+          title="Start a fresh scenario from a blank slate"
+        >
+          + New scenario
+        </button>
         <button
           className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
           onClick={duplicateActive}
