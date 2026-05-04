@@ -1,4 +1,4 @@
-import { PersistedState, Scenario } from '../types';
+import { Author, PersistedState, Scenario } from '../types';
 import { blankScenario, v0Scenario, v1Scenario, v2Scenario } from '../data/seed';
 
 const STORAGE_KEY = 'inheritance.v3';
@@ -80,20 +80,25 @@ export function saveState(state: PersistedState): void {
  * Brand-new state for a freshly-loaded device — a single blank scenario where
  * every sister starts at €0 and the user allocates from there. The V0/V1/V2
  * example data lives behind the explicit "Load example" button instead.
+ *
+ * The blank scenario is authored by `viewer` so that whoever calls "Start
+ * fresh" or accidentally deletes their last scenario doesn't end up with a
+ * 'lisa'-authored placeholder that falls into the "From others" tab from
+ * their point of view.
  */
-export function defaultState(): PersistedState {
-  const blank = blankScenario('lisa');
+export function defaultState(viewer: Author = 'lisa'): PersistedState {
+  const blank = blankScenario(viewer);
   return {
     schemaVersion: SCHEMA_VERSION,
     activeId: blank.id,
     scenarios: { [blank.id]: blank },
-    viewerId: 'lisa',
+    viewerId: viewer,
     lastSavedAt: Date.now(),
   };
 }
 
 /** Demo data — three filled-in scenarios — exposed behind the "Load example" button. */
-export function exampleState(): PersistedState {
+export function exampleState(viewer: Author = 'lisa'): PersistedState {
   const v0 = v0Scenario();
   const v1 = v1Scenario();
   const v2 = v2Scenario();
@@ -101,7 +106,7 @@ export function exampleState(): PersistedState {
     schemaVersion: SCHEMA_VERSION,
     activeId: v0.id,
     scenarios: { [v0.id]: v0, [v1.id]: v1, [v2.id]: v2 },
-    viewerId: 'lisa',
+    viewerId: viewer,
     lastSavedAt: Date.now(),
   };
 }

@@ -22,6 +22,7 @@ export function ScenarioBar() {
   const resetToDefault = useStore((s) => s.resetToDefault);
   const loadExample = useStore((s) => s.loadExample);
   const saveAsNew = useStore((s) => s.saveAsNew);
+  const addBlankScenario = useStore((s) => s.addBlankScenario);
 
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
@@ -58,7 +59,16 @@ export function ScenarioBar() {
   function switchTab(target: Tab) {
     if (target === tab) return;
     const next = target === 'mine' ? mineScenarios[0] : othersScenarios[0];
-    if (next) setActive(next.id);
+    if (next) {
+      setActive(next.id);
+      return;
+    }
+    // Switching to an empty Mine tab — create a blank scenario so the user
+    // has something to edit instead of getting stuck. (We don't auto-create
+    // on the Others side because there's no meaningful blank for that case.)
+    if (target === 'mine') {
+      addBlankScenario();
+    }
   }
 
   return (
@@ -169,13 +179,17 @@ function TabSwitch({
     >
       <TabButton
         active={current === 'mine'}
-        disabled={mineCount === 0 && current !== 'mine'}
+        // Mine is always clickable — switching to it when empty creates a
+        // blank scenario, so the user is never stranded on the Others tab.
         onClick={() => onSwitch('mine')}
         label="Mine"
         count={mineCount}
       />
       <TabButton
         active={current === 'others'}
+        // Others stays disabled when empty — there's no meaningful action
+        // to take ("create a scenario from someone else" needs the someone
+        // else to push one first).
         disabled={othersCount === 0 && current !== 'others'}
         onClick={() => onSwitch('others')}
         label="From others"
