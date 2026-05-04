@@ -89,8 +89,16 @@ export function defaultAssets(): Asset[] {
       // 6 500 m² split into 6 plots ≈ 1 083 m² each. Agricultural rate
       // ≈ €40/m² → ~€43 333 per plot. Building-property rate ≈ €692/m²
       // → ~€750 000 per plot. Both editable in the panel.
-      agriculturalSpotMetrics: { totalSquareMeters: 6500, eurosPerSquareMeter: 40 },
-      buildingSpotMetrics: { totalSquareMeters: 6500, eurosPerSquareMeter: 692 },
+      agriculturalSpotMetrics: {
+        totalSquareMeters: 6500,
+        eurosPerSquareMeter: 40,
+        perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
+      },
+      buildingSpotMetrics: {
+        totalSquareMeters: 6500,
+        eurosPerSquareMeter: 692,
+        perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
+      },
     },
   ];
 }

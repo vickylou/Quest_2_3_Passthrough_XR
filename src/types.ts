@@ -118,11 +118,14 @@ export interface BuildingConfig {
   perSister: Allocation;
 }
 
-/** Per-mode snapshot of the two plot metrics so toggling agri↔building
- *  round-trips both inputs without loss. */
+/** Per-mode snapshot of the plot inputs so toggling agri↔building
+ *  round-trips total area, €/m², AND the per-sister spot allocation —
+ *  e.g. "Vicky gets all 6 plots if agricultural but Lisa 2 / Vicky 2 /
+ *  Jackie 1 / Alexa 1 if rezoned to building plots." */
 export interface LandSpotMetrics {
   totalSquareMeters: number;
   eurosPerSquareMeter: number;
+  perSister: Allocation;
 }
 
 export interface HelmhausSplitValues {

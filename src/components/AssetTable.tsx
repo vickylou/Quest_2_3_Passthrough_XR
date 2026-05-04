@@ -25,13 +25,17 @@ const DEFAULT_TOTAL_SQUARE_METERS = 6500;
 const DEFAULT_AGRICULTURAL_EUR_PER_M2 = 40;
 const DEFAULT_BUILDING_EUR_PER_M2 = 692;
 
+const ZERO_PER_SISTER: Allocation = { lisa: 0, vicky: 0, jackie: 0, alexa: 0 };
+
 const DEFAULT_AGRI_METRICS: LandSpotMetrics = {
   totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_AGRICULTURAL_EUR_PER_M2,
+  perSister: { ...ZERO_PER_SISTER },
 };
 const DEFAULT_BUILDING_METRICS: LandSpotMetrics = {
   totalSquareMeters: DEFAULT_TOTAL_SQUARE_METERS,
   eurosPerSquareMeter: DEFAULT_BUILDING_EUR_PER_M2,
+  perSister: { ...ZERO_PER_SISTER },
 };
 
 const DEFAULT_BUILDING_CONFIG: BuildingConfig = {
@@ -73,7 +77,11 @@ function metricsFromConfig(config: BuildingConfig): LandSpotMetrics {
     (config.valuePerSpot && m2PerSpot > 0
       ? config.valuePerSpot / m2PerSpot
       : DEFAULT_AGRICULTURAL_EUR_PER_M2);
-  return { totalSquareMeters: total, eurosPerSquareMeter: eurPerM2 };
+  return {
+    totalSquareMeters: total,
+    eurosPerSquareMeter: eurPerM2,
+    perSister: { ...config.perSister },
+  };
 }
 
 function valuePerSpotFromMetrics(spots: number, metrics: LandSpotMetrics): number {
@@ -112,6 +120,10 @@ function toggledLandAsset(asset: Asset): Asset {
     valuePerSpot: nextValuePerSpot,
     totalSquareMeters: nextMetrics.totalSquareMeters,
     eurosPerSquareMeter: nextMetrics.eurosPerSquareMeter,
+    // Per-sister spot allocation also swaps with the mode — the user can
+    // give all 6 plots to one sister in agri mode but split them four
+    // ways in building mode, and the toggle remembers both.
+    perSister: { ...nextMetrics.perSister },
   };
   return {
     ...asset,
@@ -552,12 +564,16 @@ function LandPlotsPanel({
    * stay consistent. The current mode's snapshot is updated alongside so
    * toggling agri↔building round-trips both metrics.
    */
+  const snapshotKey =
+    mode === 'agricultural' ? 'agriculturalSpotMetrics' : 'buildingSpotMetrics';
+
   function updateMetrics(next: LandSpotMetrics) {
     onChange((a) => {
       const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
       const safe: LandSpotMetrics = {
         totalSquareMeters: Math.max(0, next.totalSquareMeters),
         eurosPerSquareMeter: Math.max(0, next.eurosPerSquareMeter),
+        perSister: { ...cur.perSister },
       };
       const newConfig: BuildingConfig = {
         ...cur,
@@ -565,8 +581,6 @@ function LandPlotsPanel({
         eurosPerSquareMeter: safe.eurosPerSquareMeter,
         valuePerSpot: valuePerSpotFromMetrics(cur.spots, safe),
       };
-      const snapshotKey =
-        mode === 'agricultural' ? 'agriculturalSpotMetrics' : 'buildingSpotMetrics';
       return {
         ...a,
         buildingConfig: newConfig,
@@ -602,14 +616,20 @@ function LandPlotsPanel({
   function updateSister(personId: PersonId, value: number) {
     onChange((a) => {
       const cur = a.buildingConfig ?? DEFAULT_BUILDING_CONFIG;
-      const newConfig: BuildingConfig = {
-        ...cur,
-        perSister: { ...cur.perSister, [personId]: Math.max(0, Math.floor(value)) },
+      const newPerSister = {
+        ...cur.perSister,
+        [personId]: Math.max(0, Math.floor(value)),
       };
+      const newConfig: BuildingConfig = { ...cur, perSister: newPerSister };
       const m = metricsFromConfig(newConfig);
+      // Mirror the live per-sister allocation into the current mode's
+      // snapshot so toggling away and back restores it (Vicky-takes-all
+      // for agri vs. four-way split for building, etc.).
+      const snapshot: LandSpotMetrics = { ...m, perSister: newPerSister };
       return {
         ...a,
         buildingConfig: newConfig,
+        [snapshotKey]: snapshot,
         totalValue: m.totalSquareMeters * m.eurosPerSquareMeter,
         allocations: deriveAllocationsFromConfig(newConfig),
       };
