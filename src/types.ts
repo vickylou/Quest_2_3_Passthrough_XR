@@ -102,22 +102,26 @@ export interface BuildingConfig {
   spots: number;
   /**
    * Authoritative price for one plot. Derived from
-   * `squareMetersPerSpot × eurosPerSquareMeter` when those fields are
-   * present (the UI always keeps it in sync with the metrics). Older saved
-   * data without metrics still works — the value is read directly.
+   * `(totalSquareMeters / spots) × eurosPerSquareMeter` when those fields
+   * are present (the UI always keeps it in sync). Older saved data without
+   * the metric fields falls back to this stored number.
    */
   valuePerSpot: number;
-  /** Physical area of a single plot, in m². */
-  squareMetersPerSpot?: number;
+  /** Total physical area of the parcel in m². m² per spot is derived
+   *  (`totalSquareMeters / spots`). */
+  totalSquareMeters?: number;
   /** Price per m² in the currently-active land mode. */
   eurosPerSquareMeter?: number;
+  /** @deprecated Replaced by `totalSquareMeters`. Read on first load only
+   *  so older saved data lifts cleanly into the new shape. */
+  squareMetersPerSpot?: number;
   perSister: Allocation;
 }
 
 /** Per-mode snapshot of the two plot metrics so toggling agri↔building
  *  round-trips both inputs without loss. */
 export interface LandSpotMetrics {
-  squareMetersPerSpot: number;
+  totalSquareMeters: number;
   eurosPerSquareMeter: number;
 }
 

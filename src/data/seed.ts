@@ -73,7 +73,7 @@ export function defaultAssets(): Asset[] {
     {
       id: LANDWIRTSCHAFT_ID,
       name: 'Agricultural land',
-      totalValue: 6 * 1083 * 40,
+      totalValue: 6500 * 40,
       allocations: alloc({}),
       imageKey: 'field',
       tone: 'orange',
@@ -81,16 +81,16 @@ export function defaultAssets(): Asset[] {
       landMode: 'agricultural',
       buildingConfig: {
         spots: 6,
-        valuePerSpot: 1083 * 40,
-        squareMetersPerSpot: 1083,
+        valuePerSpot: (6500 / 6) * 40,
+        totalSquareMeters: 6500,
         eurosPerSquareMeter: 40,
         perSister: { lisa: 0, vicky: 0, jackie: 0, alexa: 0 },
       },
       // 6 500 m² split into 6 plots ≈ 1 083 m² each. Agricultural rate
-      // ≈ €40/m² → €43 320 per plot. Building-property rate ≈ €692/m²
-      // → €750 000 per plot. Both editable in the panel.
-      agriculturalSpotMetrics: { squareMetersPerSpot: 1083, eurosPerSquareMeter: 40 },
-      buildingSpotMetrics: { squareMetersPerSpot: 1083, eurosPerSquareMeter: 692 },
+      // ≈ €40/m² → ~€43 333 per plot. Building-property rate ≈ €692/m²
+      // → ~€750 000 per plot. Both editable in the panel.
+      agriculturalSpotMetrics: { totalSquareMeters: 6500, eurosPerSquareMeter: 40 },
+      buildingSpotMetrics: { totalSquareMeters: 6500, eurosPerSquareMeter: 692 },
     },
   ];
 }
