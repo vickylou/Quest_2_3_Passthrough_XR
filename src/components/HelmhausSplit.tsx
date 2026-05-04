@@ -35,33 +35,33 @@ const A = {
 const PACKAGE_TARGET = 150_000;
 
 interface Scales {
-  // editable totals (one per card)
+  // editable totals (one per editable card)
   egTotal: number;
   setEgTotal: (n: number) => void;
-  ogTotal: number;
-  setOgTotal: (n: number) => void;
+  ogLisa: number;
+  setOgLisa: (n: number) => void;
+  ogVicky: number;
+  setOgVicky: (n: number) => void;
   praxisFull: number;
   setPraxisFull: (n: number) => void;
   dgFull: number;
   setDgFull: (n: number) => void;
+  garageTotal: number;
+  setGarageTotal: (n: number) => void;
   lisaGarage: number;
-  setLisaGarage: (n: number) => void;
   vickyGarage: number;
-  setVickyGarage: (n: number) => void;
   reset: () => void;
   // per-card scale factors (ratio of current card total ÷ appraisal total)
   s_eg: number;
-  s_og: number;
+  s_ol: number;
+  s_ov: number;
   s_p: number;
   s_d: number;
-  s_lg: number;
-  s_vg: number;
-  // derived OG sub-splits (Lisa / Vicky proportional to appraisal)
-  ogLisa: number;
-  ogVicky: number;
+  s_g: number;
+  // derived
+  ogTotal: number;
   praxisHalf: number;
   dgHalf: number;
-  // derived sums
   package_: number;
   lisaTotal: number;
   vickyTotal: number;
@@ -84,21 +84,26 @@ const fmt = (n: number) =>
 
 export function HelmhausSplit() {
   const [egTotal, setEgTotal] = useState<number>(A.EG_TOTAL);
-  const [ogTotal, setOgTotal] = useState<number>(A.OG_TOTAL);
+  const [ogLisa, setOgLisa] = useState<number>(A.OG_LISA);
+  const [ogVicky, setOgVicky] = useState<number>(A.OG_VICKY);
   const [praxisFull, setPraxisFull] = useState<number>(A.PRAXIS_FULL);
   const [dgFull, setDgFull] = useState<number>(A.DG_FULL);
-  const [lisaGarage, setLisaGarage] = useState<number>(A.LISA_GARAGE);
-  const [vickyGarage, setVickyGarage] = useState<number>(A.VICKY_GARAGE);
+  const [garageTotal, setGarageTotal] = useState<number>(A.LISA_GARAGE + A.VICKY_GARAGE);
 
   const scales: Scales = useMemo(() => {
     const s_eg = egTotal / A.EG_TOTAL;
-    const s_og = ogTotal / A.OG_TOTAL;
+    const s_ol = ogLisa / A.OG_LISA;
+    const s_ov = ogVicky / A.OG_VICKY;
     const s_p = praxisFull / A.PRAXIS_FULL;
     const s_d = dgFull / A.DG_FULL;
-    const s_lg = lisaGarage / A.LISA_GARAGE;
-    const s_vg = vickyGarage / A.VICKY_GARAGE;
-    const ogLisa = ogTotal * (A.OG_LISA / A.OG_TOTAL);
-    const ogVicky = ogTotal * (A.OG_VICKY / A.OG_TOTAL);
+    const garageBase = A.LISA_GARAGE + A.VICKY_GARAGE; // 58_920
+    const s_g = garageTotal / garageBase;
+    // Split the garage total back into Lisa / Vicky shares using the
+    // appraisal ratios (Lisa ½ Garage = 26,250; Vicky ½ Garage + Lager =
+    // 32,670; Lisa share ≈ 44.5 %).
+    const lisaGarage = garageTotal * (A.LISA_GARAGE / garageBase);
+    const vickyGarage = garageTotal * (A.VICKY_GARAGE / garageBase);
+    const ogTotal = ogLisa + ogVicky;
     const praxisHalf = praxisFull / 2;
     const dgHalf = dgFull / 2;
     const package_ = praxisHalf + dgHalf + ogLisa;
@@ -109,32 +114,33 @@ export function HelmhausSplit() {
     return {
       egTotal,
       setEgTotal,
-      ogTotal,
-      setOgTotal,
+      ogLisa,
+      setOgLisa,
+      ogVicky,
+      setOgVicky,
       praxisFull,
       setPraxisFull,
       dgFull,
       setDgFull,
+      garageTotal,
+      setGarageTotal,
       lisaGarage,
-      setLisaGarage,
       vickyGarage,
-      setVickyGarage,
       reset: () => {
         setEgTotal(A.EG_TOTAL);
-        setOgTotal(A.OG_TOTAL);
+        setOgLisa(A.OG_LISA);
+        setOgVicky(A.OG_VICKY);
         setPraxisFull(A.PRAXIS_FULL);
         setDgFull(A.DG_FULL);
-        setLisaGarage(A.LISA_GARAGE);
-        setVickyGarage(A.VICKY_GARAGE);
+        setGarageTotal(A.LISA_GARAGE + A.VICKY_GARAGE);
       },
       s_eg,
-      s_og,
+      s_ol,
+      s_ov,
       s_p,
       s_d,
-      s_lg,
-      s_vg,
-      ogLisa,
-      ogVicky,
+      s_g,
+      ogTotal,
       praxisHalf,
       dgHalf,
       package_,
@@ -142,7 +148,7 @@ export function HelmhausSplit() {
       vickyTotal,
       helmhausTotal,
     };
-  }, [egTotal, ogTotal, praxisFull, dgFull, lisaGarage, vickyGarage]);
+  }, [egTotal, ogLisa, ogVicky, praxisFull, dgFull, garageTotal]);
 
   return (
     <ScaleCtx.Provider value={scales}>
@@ -167,7 +173,58 @@ export function HelmhausSplit() {
       </Section>
       <DetailedTable />
     </div>
+    <FloatingIndicators />
     </ScaleCtx.Provider>
+  );
+}
+
+/**
+ * Always-visible status panel pinned to the bottom-right of the viewport.
+ * Shows the live Σ Helmhaus and Buyout-Paket vs. their targets so the user
+ * can see where they're landing while editing values further up the panel.
+ */
+function FloatingIndicators() {
+  const { helmhausTotal, package_, reset } = useScales();
+  const helmDiff = helmhausTotal - A.HELMHAUS_TOTAL;
+  const packDiff = package_ - PACKAGE_TARGET;
+  const helmGood = Math.abs(helmDiff) < 50;
+  const packGood = Math.abs(packDiff) < 50;
+  return (
+    <div className="pointer-events-none fixed bottom-3 right-3 z-50 max-w-[calc(100vw-1.5rem)] md:bottom-4 md:right-4">
+      <div className="pointer-events-auto rounded-lg border border-slate-300 bg-white/95 p-2.5 text-xs shadow-2xl backdrop-blur md:p-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            Helmhaus-Bilanz
+          </span>
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-50"
+          >
+            ↺ Reset
+          </button>
+        </div>
+        <div className="space-y-0.5 tabular-nums">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Σ</span>
+            <strong className="flex-1 text-right">{fmt(helmhausTotal)}</strong>
+            <span className={helmGood ? 'text-emerald-700' : 'text-rose-700'}>
+              {helmGood ? '✓' : `${helmDiff >= 0 ? '+' : ''}${fmt(helmDiff)}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Buy</span>
+            <strong className="flex-1 text-right">{fmt(package_)}</strong>
+            <span className={packGood ? 'text-emerald-700' : 'text-rose-700'}>
+              {packGood ? '✓' : `${packDiff >= 0 ? '+' : ''}${fmt(packDiff)}`}
+            </span>
+          </div>
+        </div>
+        <div className="mt-1 text-[10px] text-slate-400">
+          Ziel Σ {fmt(A.HELMHAUS_TOTAL)} · Buy {fmt(PACKAGE_TARGET)}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -444,23 +501,39 @@ function EditableTotal({
   value,
   onChange,
   color = '#b45309',
+  size = 'lg',
 }: {
   value: number;
   onChange: (n: number) => void;
   color?: string;
+  size?: 'sm' | 'lg';
 }) {
+  // stopPropagation prevents tapping the input from also toggling the
+  // <details> ancestor — a real footgun when the EditableTotal sits in a
+  // <summary>.
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const dim =
+    size === 'sm'
+      ? 'w-24 px-2 py-0.5 text-sm md:w-28'
+      : 'w-32 px-2 py-1 text-base md:w-40 md:text-lg';
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5" onClick={stop}>
       <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">€</span>
       <input
         type="number"
         step={1000}
         inputMode="numeric"
-        className="field w-32 px-2 py-1 text-right text-base font-bold tabular-nums md:w-40 md:text-lg"
+        className={`field text-right font-bold tabular-nums ${dim}`}
         style={{ color }}
         value={Math.round(value)}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
         onFocus={(e) => e.currentTarget.select()}
+        onClick={stop}
+        onMouseDown={stop}
+        onKeyDown={(e) => {
+          // prevent Space / Enter from toggling the parent <details>
+          if (e.key === ' ' || e.key === 'Enter') stop(e);
+        }}
         title="Editable — Lisa- / Vicky-Gesamt aktualisieren sich automatisch"
       />
     </div>
@@ -508,7 +581,7 @@ function PartySection({
 }: {
   side: 'lisa' | 'vicky';
   label: string;
-  value: string;
+  value: React.ReactNode;
   children: React.ReactNode;
 }) {
   const colors =
@@ -678,13 +751,14 @@ function FloorEG() {
 }
 
 function FloorOG() {
-  const { ogTotal, setOgTotal, ogLisa, ogVicky } = useScales();
+  const { ogTotal, ogLisa, setOgLisa, ogVicky, setOgVicky } = useScales();
   return (
     <FloorCard
       badge="OG · Obergeschoss"
       badgeColor="#b07ac0"
       title="Gesamtwert"
-      totalValue={<EditableTotal value={ogTotal} onChange={setOgTotal} />}
+      subtitle="= Lisa-Teil + Vicky-Teil"
+      totalValue={fmt(ogTotal)}
       image="og.jpg"
       imageAlt="OG mit allen Farben"
       colorLegend={
@@ -701,7 +775,11 @@ function FloorOG() {
         </>
       }
     >
-      <PartySection side="lisa" label="Lisa-Teil OG (blau) · ~30 m²" value={fmt(ogLisa)}>
+      <PartySection
+        side="lisa"
+        label="Lisa-Teil OG (blau) · ~30 m²"
+        value={<EditableTotal value={ogLisa} onChange={setOgLisa} color="#2d5a8c" size="sm" />}
+      >
         <SubExp label="Gebäude-Anteil Lisa-OG" smallLabel="(Wohnung)" value={fmt(53_300)}>
           <SubRow
             name={
@@ -739,7 +817,11 @@ function FloorOG() {
         </SubExp>
       </PartySection>
 
-      <PartySection side="vicky" label="Vicky-Gesamt OG (gelb + rosa)" value={fmt(ogVicky)}>
+      <PartySection
+        side="vicky"
+        label="Vicky-Gesamt OG (gelb + rosa)"
+        value={<EditableTotal value={ogVicky} onChange={setOgVicky} color="#7a6620" size="sm" />}
+      >
         <SubExp
           label="Gebäude-Anteil Vicky-OG"
           smallLabel="(Wohnung + Außen)"
@@ -883,15 +965,14 @@ function FloorKGPraxis() {
 }
 
 function FloorKGGarage() {
-  const { lisaGarage, setLisaGarage, vickyGarage, setVickyGarage } = useScales();
-  const garageTotal = lisaGarage + vickyGarage;
+  const { garageTotal, setGarageTotal } = useScales();
   return (
     <FloorCard
       badge="KG · Garage"
       badgeColor="#8a7a6a"
       title="Gesamtwert"
       subtitle="Garage halbiert + Lager Vicky"
-      totalValue={fmt(garageTotal)}
+      totalValue={<EditableTotal value={garageTotal} onChange={setGarageTotal} />}
       image="kg.jpg"
       imageAlt="KG · Garage halbiert + Lager"
       colorLegend={
