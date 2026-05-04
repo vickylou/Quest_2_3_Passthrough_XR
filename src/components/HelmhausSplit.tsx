@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 
 /**
  * Detailed Helmhaus internal-split panel — replaces the free-text
@@ -15,6 +15,53 @@ import { useState } from 'react';
 
 const IMG = import.meta.env.BASE_URL + 'helmhaus/';
 
+// Appraisal anchors (PlanetHome 27.02.2024). All scaling is expressed as
+// factors against these constants so the math stays readable.
+const A = {
+  EG_TOTAL: 601_890,
+  OG_TOTAL: 463_670,
+  OG_LISA: 128_110,
+  OG_VICKY: 335_560,
+  PRAXIS_FULL: 138_210,
+  PRAXIS_HALF: 69_105,
+  DG_FULL: 56_820,
+  DG_HALF: 28_410,
+  LISA_GARAGE: 26_250,
+  VICKY_GARAGE: 32_670,
+  ALLG_HALF: 841,
+  HELMHAUS_TOTAL: 1_321_141,
+} as const;
+
+const PACKAGE_TARGET = 150_000;
+
+interface Scales {
+  ogTotal: number;
+  setOgTotal: (n: number) => void;
+  reset: () => void;
+  s_og: number;
+  s_eg: number;
+  s_pd: number;
+  egTotal: number;
+  ogLisa: number;
+  ogVicky: number;
+  praxisFull: number;
+  praxisHalf: number;
+  dgFull: number;
+  dgHalf: number;
+  package_: number;
+  lisaTotal: number;
+  vickyTotal: number;
+  helmhausTotal: number;
+}
+
+const ScaleCtx = createContext<Scales | null>(null);
+
+function useScales(): Scales {
+  const ctx = useContext(ScaleCtx);
+  if (!ctx) throw new Error('useScales outside ScaleCtx');
+  return ctx;
+}
+
 const fmt = (n: number) =>
   '€ ' +
   n.toLocaleString('de-DE', {
@@ -22,7 +69,49 @@ const fmt = (n: number) =>
   });
 
 export function HelmhausSplit() {
+  const [ogTotal, setOgTotal] = useState<number>(A.OG_TOTAL);
+
+  const scales: Scales = useMemo(() => {
+    const s_og = ogTotal / A.OG_TOTAL;
+    const s_eg = s_og;
+    const pdHalfBase = A.PRAXIS_HALF + A.DG_HALF;
+    const s_pd_raw = (PACKAGE_TARGET - A.OG_LISA * s_og) / pdHalfBase;
+    const s_pd = Math.max(0, s_pd_raw);
+    const egTotal = A.EG_TOTAL * s_eg;
+    const ogLisa = A.OG_LISA * s_og;
+    const ogVicky = A.OG_VICKY * s_og;
+    const praxisFull = A.PRAXIS_FULL * s_pd;
+    const praxisHalf = A.PRAXIS_HALF * s_pd;
+    const dgFull = A.DG_FULL * s_pd;
+    const dgHalf = A.DG_HALF * s_pd;
+    const package_ = praxisHalf + dgHalf + ogLisa;
+    const lisaTotal =
+      egTotal + ogLisa + praxisFull + A.LISA_GARAGE + dgFull + A.ALLG_HALF;
+    const vickyTotal = ogVicky + A.VICKY_GARAGE + A.ALLG_HALF;
+    const helmhausTotal = lisaTotal + vickyTotal;
+    return {
+      ogTotal,
+      setOgTotal,
+      reset: () => setOgTotal(A.OG_TOTAL),
+      s_og,
+      s_eg,
+      s_pd,
+      egTotal,
+      ogLisa,
+      ogVicky,
+      praxisFull,
+      praxisHalf,
+      dgFull,
+      dgHalf,
+      package_,
+      lisaTotal,
+      vickyTotal,
+      helmhausTotal,
+    };
+  }, [ogTotal]);
+
   return (
+    <ScaleCtx.Provider value={scales}>
     <div className="space-y-4 text-sm leading-relaxed text-slate-800">
       <Header />
       <Hero />
@@ -42,12 +131,12 @@ export function HelmhausSplit() {
       <Section num={3} title="Was noch fehlt">
         <OpenItems />
       </Section>
-      <AdjustmentTool />
       <Section num={4} title="Ansichten vom Haus">
         <Views />
       </Section>
       <DetailedTable />
     </div>
+    </ScaleCtx.Provider>
   );
 }
 
@@ -269,7 +358,7 @@ function FloorCard({
   badgeColor: string;
   title: string;
   subtitle?: string;
-  totalValue: string;
+  totalValue: React.ReactNode;
   totalNote?: React.ReactNode;
   image?: string;
   imageAlt?: string;
@@ -442,12 +531,13 @@ function ColorDot({ color, border }: { color: string; border: string }) {
 }
 
 function FloorEG() {
+  const { egTotal } = useScales();
   return (
     <FloorCard
       badge="EG · Erdgeschoss"
       badgeColor="#6a9a5a"
       title="Gesamtwert"
-      totalValue={fmt(601_890)}
+      totalValue={fmt(egTotal)}
       image="eg.jpg"
       imageAlt="EG mit allen Farben"
       colorLegend={
@@ -461,7 +551,7 @@ function FloorEG() {
         </>
       }
     >
-      <PartySection side="lisa" label="Lisa-Gesamt EG (blau)" value={fmt(601_890)}>
+      <PartySection side="lisa" label="Lisa-Gesamt EG (blau)" value={fmt(egTotal)}>
         <SubExp
           label="Gebäude-Anteil EG"
           smallLabel="(Wohnung + Außen)"
@@ -533,12 +623,27 @@ function FloorEG() {
 }
 
 function FloorOG() {
+  const { ogTotal, setOgTotal, ogLisa, ogVicky } = useScales();
   return (
     <FloorCard
       badge="OG · Obergeschoss"
       badgeColor="#b07ac0"
       title="Gesamtwert"
-      totalValue={fmt(463_670)}
+      totalValue={
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">€</span>
+          <input
+            type="number"
+            step={1000}
+            inputMode="numeric"
+            className="field w-32 px-2 py-1 text-right text-base font-bold tabular-nums text-amber-700 md:w-40 md:text-lg"
+            value={Math.round(ogTotal)}
+            onChange={(e) => setOgTotal(Number(e.target.value) || 0)}
+            onFocus={(e) => e.currentTarget.select()}
+            title="Editable — alle anderen Karten passen sich automatisch an"
+          />
+        </div>
+      }
       image="og.jpg"
       imageAlt="OG mit allen Farben"
       colorLegend={
@@ -555,7 +660,7 @@ function FloorOG() {
         </>
       }
     >
-      <PartySection side="lisa" label="Lisa-Teil OG (blau) · ~30 m²" value={fmt(128_110)}>
+      <PartySection side="lisa" label="Lisa-Teil OG (blau) · ~30 m²" value={fmt(ogLisa)}>
         <SubExp label="Gebäude-Anteil Lisa-OG" smallLabel="(Wohnung)" value={fmt(53_300)}>
           <SubRow
             name={
@@ -593,7 +698,7 @@ function FloorOG() {
         </SubExp>
       </PartySection>
 
-      <PartySection side="vicky" label="Vicky-Gesamt OG (gelb + rosa)" value={fmt(335_560)}>
+      <PartySection side="vicky" label="Vicky-Gesamt OG (gelb + rosa)" value={fmt(ogVicky)}>
         <SubExp
           label="Gebäude-Anteil Vicky-OG"
           smallLabel="(Wohnung + Außen)"
@@ -678,13 +783,14 @@ function FloorOG() {
 }
 
 function FloorKGPraxis() {
+  const { praxisFull } = useScales();
   return (
     <FloorCard
       badge="KG · Praxis"
       badgeColor="#6a8aa6"
       title="Gesamtwert"
       subtitle="nur Praxis, ohne Garage"
-      totalValue={fmt(138_210)}
+      totalValue={fmt(praxisFull)}
       image="kg.jpg"
       imageAlt="KG gefärbt · Praxis blau"
       colorLegend={
@@ -694,7 +800,7 @@ function FloorKGPraxis() {
         </>
       }
     >
-      <PartySection side="lisa" label="Lisa-Anteil KG-Praxis (blau) · ~115 m²" value={fmt(138_210)}>
+      <PartySection side="lisa" label="Lisa-Anteil KG-Praxis (blau) · ~115 m²" value={fmt(praxisFull)}>
         <SubExp
           label="Gebäude-Anteil Praxis"
           smallLabel="(leer bewertet, ~€ 706/m²)"
@@ -851,6 +957,7 @@ function FloorKGGarage() {
 }
 
 function FloorDG() {
+  const { dgFull } = useScales();
   return (
     <div
       className="rounded-xl border p-4 shadow-sm"
@@ -868,12 +975,12 @@ function FloorDG() {
         </span>
         <h4 className="m-0 flex-1 text-sm font-medium text-slate-500">Gesamtwert</h4>
         <div className="text-base font-bold tabular-nums md:text-lg" style={{ color: '#c98b3a' }}>
-          {fmt(56_820)}
+          {fmt(dgFull)}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_280px]">
         <div className="space-y-2">
-        <PartySection side="lisa" label="Lisa-Anteil DG (blau) · ~120 m² brutto" value={fmt(56_820)}>
+        <PartySection side="lisa" label="Lisa-Anteil DG (blau) · ~120 m² brutto" value={fmt(dgFull)}>
           <SubExp
             label="Gebäude-Anteil DG"
             smallLabel="(Bauwerk-Substanz)"
@@ -940,6 +1047,11 @@ function FloorDG() {
 }
 
 function TotalOverview() {
+  const { lisaTotal, vickyTotal, helmhausTotal, package_, reset } = useScales();
+  const lisaPct = helmhausTotal > 0 ? (lisaTotal / helmhausTotal) * 100 : 0;
+  const vickyPct = helmhausTotal > 0 ? (vickyTotal / helmhausTotal) * 100 : 0;
+  const helmhausDiff = helmhausTotal - A.HELMHAUS_TOTAL;
+  const packageDiff = package_ - PACKAGE_TARGET;
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <h4 className="m-0 mb-3 text-base font-bold">Gesamt-Übersicht — Aufteilung Lisa + Vicky</h4>
@@ -947,8 +1059,8 @@ function TotalOverview() {
         <PartyTotal
           side="lisa"
           name="Lisa"
-          pct="~72 % Anteil"
-          total={fmt(952_130)}
+          pct={`~${lisaPct.toFixed(0)} % Anteil`}
+          total={fmt(lisaTotal)}
           gebaeudeTotal={fmt(445_750)}
           bodenTotal={fmt(414_840)}
           marktTotal={fmt(91_540)}
@@ -987,8 +1099,8 @@ function TotalOverview() {
         <PartyTotal
           side="vicky"
           name="Vicky"
-          pct="~28 % Anteil"
-          total={fmt(369_080)}
+          pct={`~${vickyPct.toFixed(0)} % Anteil`}
+          total={fmt(vickyTotal)}
           gebaeudeTotal={fmt(165_450)}
           bodenTotal={fmt(166_810)}
           marktTotal={fmt(36_820)}
@@ -1031,19 +1143,42 @@ function TotalOverview() {
         </div>
         <div className="mt-1.5 flex flex-wrap items-baseline justify-center gap-2">
           <span className="text-sm font-bold" style={{ color: '#2d5a8c' }}>
-            {fmt(952_130)}
+            {fmt(lisaTotal)}
           </span>
           <span className="text-slate-500">+</span>
           <span className="text-sm font-bold" style={{ color: '#7a6620' }}>
-            {fmt(369_080)}
+            {fmt(vickyTotal)}
           </span>
           <span className="text-slate-500">=</span>
           <span className="text-2xl font-bold tabular-nums text-amber-700">
-            {fmt(1_321_210)}
+            {fmt(helmhausTotal)}
           </span>
         </div>
         <div className="mt-1 text-xs text-slate-500">
-          ≈ Schätzungs-Verkehrswert {fmt(1_321_141)} (kleine Rundung)
+          Schätzungs-Verkehrswert {fmt(A.HELMHAUS_TOTAL)} ·{' '}
+          <span className={Math.abs(helmhausDiff) < 50 ? 'text-emerald-700' : 'text-rose-700'}>
+            Differenz {helmhausDiff >= 0 ? '+' : ''}
+            {fmt(helmhausDiff)}
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-xs">
+          <span>
+            Buyout-Paket (½ Praxis + ½ DG + OG-Lisa):{' '}
+            <strong className="tabular-nums">{fmt(package_)}</strong>
+          </span>
+          <span
+            className={Math.abs(packageDiff) < 50 ? 'text-emerald-700' : 'text-rose-700'}
+          >
+            Ziel {fmt(PACKAGE_TARGET)}{' · '}
+            {Math.abs(packageDiff) < 50 ? '✓' : `Δ ${fmt(packageDiff)}`}
+          </span>
+          <button
+            type="button"
+            onClick={reset}
+            className="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+          >
+            ↺ Zurücksetzen
+          </button>
         </div>
       </div>
     </div>
