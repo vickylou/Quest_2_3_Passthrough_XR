@@ -127,7 +127,7 @@ function AssetCard({
           </div>
 
           <div className="mt-3">
-            <PercentGrid asset={asset} onChange={onChange} readOnly={readOnly} />
+            <PercentGrid asset={asset} onChange={onChange} readOnly={readOnly} valueColor={tone.pillText} />
           </div>
 
           {(hasBreakdown || isHouse) && (
@@ -266,10 +266,12 @@ function PercentGrid({
   asset,
   onChange,
   readOnly,
+  valueColor,
 }: {
   asset: Asset;
   onChange: (mut: (a: Asset) => Asset) => void;
   readOnly: boolean;
+  valueColor: string;
 }) {
   const sum = PERSON_IDS.reduce((acc, p) => acc + (asset.allocations[p] ?? 0), 0);
   const sumOff = Math.abs(sum - 100) > 0.05;
@@ -321,6 +323,7 @@ function PercentGrid({
             onChange={(v) => setShare(p.id, v)}
             onAcceptSuggestion={applySuggestion}
             readOnly={readOnly}
+            valueColor={valueColor}
           />
         );
       })}
@@ -337,6 +340,7 @@ function PersonShareCell({
   onChange,
   onAcceptSuggestion,
   readOnly,
+  valueColor,
 }: {
   name: string;
   colors: { primary: string; accent: string };
@@ -346,6 +350,7 @@ function PersonShareCell({
   onChange: (v: number) => void;
   onAcceptSuggestion: () => void;
   readOnly: boolean;
+  valueColor: string;
 }) {
   const gradient = `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`;
   return (
@@ -360,11 +365,19 @@ function PersonShareCell({
           <span className="truncate">{name}</span>
         </span>
         {/* Compact format on mobile keeps the cell from overflowing on narrow
-            screens; full format reads better on desktop. */}
-        <span className="shrink-0 text-[10px] tabular-nums text-slate-400 md:hidden">
+            screens; full format reads better on desktop. The value uses the
+            card's tone (pillText) so each asset's per-person € reads in a
+            darker shade of that card's colour family. */}
+        <span
+          className="shrink-0 text-xs font-semibold tabular-nums md:hidden"
+          style={{ color: valueColor }}
+        >
           {formatEuroCompact(euro)}
         </span>
-        <span className="hidden shrink-0 text-[10px] tabular-nums text-slate-400 md:inline">
+        <span
+          className="hidden shrink-0 text-sm font-semibold tabular-nums md:inline"
+          style={{ color: valueColor }}
+        >
           {formatEuro(euro)}
         </span>
       </div>
