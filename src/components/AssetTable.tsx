@@ -1099,42 +1099,23 @@ function BreakdownItemRow({
   const sum = PERSON_IDS.reduce((acc, p) => acc + (alloc[p] ?? 0), 0);
   const sumOff = Math.abs(sum - 100) > 0.05 && sum !== 0;
   return (
-    <div className="space-y-1.5 rounded-md border border-slate-200 bg-white p-1.5">
-      <div className="flex items-center gap-1.5">
+    <div className="space-y-2 rounded-md border border-slate-200 bg-white p-2">
+      {/* Header row: editable label sitting where the asset card's title
+          lives, and a remove button on the right. The label looks like a
+          heading rather than an inline input so the row reads as a
+          self-contained mini-card. */}
+      <div className="flex items-start justify-between gap-2">
         <input
-          className="field flex-1 py-1 text-xs disabled:bg-slate-50 disabled:text-slate-600"
+          className="field flex-1 border-transparent bg-transparent px-1 py-0 text-sm font-semibold text-slate-800 hover:border-slate-200 focus:border-slate-300 focus:bg-white disabled:bg-transparent"
           value={item.label}
+          placeholder="Component (e.g. Renovation costs)"
           onChange={(e) => onUpdate(item.id, (x) => ({ ...x, label: e.target.value }))}
           disabled={readOnly}
         />
-        <div className="relative w-28">
-          <input
-            type="number"
-            inputMode="decimal"
-            className="field py-1 pr-5 text-right text-xs tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
-            value={item.amount}
-            onChange={(e) =>
-              onUpdate(item.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
-            }
-            onFocus={(e) => e.currentTarget.select()}
-            disabled={readOnly}
-          />
-          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
-            €
-          </span>
-        </div>
-        <span
-          className={`pill px-1.5 py-0 text-[9px] ${
-            sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
-          }`}
-          title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
-        >
-          Σ {formatPercent(sum)}
-        </span>
         {!readOnly && (
           <button
             onClick={() => onRemove(item.id)}
-            className="btn-ghost px-1.5 py-0.5 text-rose-600 hover:bg-rose-50"
+            className="btn-ghost shrink-0 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
             title="Remove component"
             aria-label="Remove component"
           >
@@ -1142,7 +1123,42 @@ function BreakdownItemRow({
           </button>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-1 lg:grid-cols-4">
+
+      {/* Amount field — same style as the asset card's "Total value". */}
+      <div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            Amount
+          </label>
+          <span
+            className={`pill px-1.5 py-0 text-[9px] ${
+              sumOff ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+            }`}
+            title={sumOff ? 'Shares should add up to 100 %' : 'Shares add up to 100 %'}
+          >
+            Σ {formatPercent(sum)}
+          </span>
+        </div>
+        <div className="relative mt-0.5">
+          <input
+            type="number"
+            inputMode="decimal"
+            className="field w-32 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
+            value={item.amount}
+            onChange={(e) =>
+              onUpdate(item.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))
+            }
+            onFocus={(e) => e.currentTarget.select()}
+            disabled={readOnly}
+          />
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+            €
+          </span>
+        </div>
+      </div>
+
+      {/* Per-sister percentage grid — same styling as the asset card. */}
+      <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
         {PEOPLE.map((p) => {
           const pct = alloc[p.id] ?? 0;
           const euro = (item.amount * pct) / 100;
@@ -1150,39 +1166,45 @@ function BreakdownItemRow({
           return (
             <div
               key={p.id}
-              className="rounded border border-slate-200 bg-white px-1.5 py-1"
+              className="rounded-md border border-slate-200 bg-white px-2 py-1.5"
             >
-              <div className="flex items-center justify-between gap-1 text-[11px] text-slate-700">
-                <span className="flex min-w-0 items-center gap-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="flex min-w-0 items-center gap-1 text-xs font-medium text-slate-700">
                   <span
-                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ background: gradient }}
                     aria-hidden
                   />
                   <span className="truncate">{p.name}</span>
                 </span>
-                <span className="shrink-0 tabular-nums text-slate-500">
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-700 md:hidden">
                   {formatEuroCompact(euro)}
                 </span>
+                <span className="hidden shrink-0 text-sm font-semibold tabular-nums text-slate-700 md:inline">
+                  {formatEuro(euro)}
+                </span>
               </div>
-              <div className="relative mt-0.5">
+              <div className="relative mt-1">
                 <input
                   type="number"
                   inputMode="decimal"
                   step="0.01"
-                  className="field py-0.5 pr-5 text-right text-[11px] tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+                  className="field py-1 pr-7 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
                   value={pct}
                   onChange={(e) => {
                     const v = Number(e.target.value) || 0;
                     onUpdate(item.id, (x) => ({
                       ...x,
-                      allocations: { ...(x.allocations ?? parentAllocations), [p.id]: v },
+                      allocations: {
+                        ...(x.allocations ?? parentAllocations),
+                        [p.id]: v,
+                      },
                     }));
                   }}
                   onFocus={(e) => e.currentTarget.select()}
                   disabled={readOnly}
                 />
-                <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
                   %
                 </span>
               </div>
