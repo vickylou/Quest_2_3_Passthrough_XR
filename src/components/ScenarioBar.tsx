@@ -81,7 +81,7 @@ export function ScenarioBar() {
       />
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="min-w-[220px] flex-1">
+        <div className="w-full min-w-0 flex-1 sm:w-auto sm:min-w-[200px]">
           <label className="block text-[10px] font-medium uppercase tracking-wide text-slate-500">
             Active scenario
           </label>
@@ -233,7 +233,7 @@ function TabButton({
 function ScenarioChips({ scenario, tab }: { scenario: Scenario; tab: Tab }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {tab === 'others' && <Chip>By {authorName(scenario.author)}</Chip>}
+      {tab === 'others' && <AuthorBadge author={scenario.author} />}
       {scenario.meeting && <Chip tone="indigo">📅 {scenario.meeting}</Chip>}
       <Chip tone={visibilityTone(scenario.visibility)}>{visibilityLabel(scenario.visibility)}</Chip>
       {scenario.status !== 'draft' && (
@@ -244,6 +244,38 @@ function ScenarioChips({ scenario, tab }: { scenario: Scenario; tab: Tab }) {
     </div>
   );
 }
+
+/**
+ * Small circular badge showing the first letter of an author's name in their
+ * sister-colour gradient (or a slate gradient for Mum / Dad / Test, who don't
+ * have a colour pair). Used wherever we'd otherwise spell out the author —
+ * scenario chips, the read-only banner — to keep the layout compact and make
+ * authorship recognisable at a glance.
+ */
+function AuthorBadge({ author, size = 'sm' }: { author: Author; size?: 'sm' | 'md' }) {
+  const meta = AUTHOR_META[author];
+  const dim = size === 'md' ? 'h-6 w-6 text-xs' : 'h-5 w-5 text-[10px]';
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white ${dim}`}
+      style={{ background: meta.gradient }}
+      title={meta.name}
+      aria-label={meta.name}
+    >
+      {meta.letter}
+    </span>
+  );
+}
+
+const AUTHOR_META: Record<Author, { name: string; letter: string; gradient: string }> = {
+  lisa: { name: 'Lisa', letter: 'L', gradient: 'linear-gradient(135deg, #16a34a, #2563eb)' },
+  vicky: { name: 'Vicky', letter: 'V', gradient: 'linear-gradient(135deg, #eab308, #f97316)' },
+  jackie: { name: 'Jackie', letter: 'J', gradient: 'linear-gradient(135deg, #dc2626, #ec4899)' },
+  alexa: { name: 'Alexa', letter: 'A', gradient: 'linear-gradient(135deg, #9333ea, #7c3aed)' },
+  mum: { name: 'Mum', letter: 'M', gradient: 'linear-gradient(135deg, #475569, #1e293b)' },
+  dad: { name: 'Dad', letter: 'D', gradient: 'linear-gradient(135deg, #334155, #0f172a)' },
+  test: { name: 'Test phone', letter: 'T', gradient: 'linear-gradient(135deg, #94a3b8, #64748b)' },
+};
 
 type ChipTone = 'slate' | 'indigo' | 'emerald' | 'amber' | 'sky' | 'violet';
 
@@ -442,9 +474,12 @@ function OthersToolbar({
 }) {
   return (
     <>
-      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        Read-only — this scenario was created by <strong>{authorName(active.author)}</strong>. Click
-        Duplicate to edit your own copy.
+      <div className="mt-3 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <AuthorBadge author={active.author} size="md" />
+        <span>
+          Read-only — created by <strong>{authorName(active.author)}</strong>. Click Duplicate to
+          edit your own copy.
+        </span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button className="btn-primary" onClick={duplicateActive}>
@@ -517,11 +552,11 @@ function byNameAsc(a: Scenario, b: Scenario): number {
 function pickerLabel(s: Scenario, tab: Tab): string {
   const status = statusBadge(s.status);
   const visibility = tab === 'mine' ? ` ${visibilityIcon(s.visibility)}` : '';
-  // On the Others tab, lead with "by Author —" so it's clear who created
-  // the scenario without having to read the optgroup heading or the chip.
-  const author = tab === 'others' ? `by ${authorName(s.author)} — ` : '';
+  // On the Others tab the optgroup label already groups by author, and the
+  // selected scenario's author is shown as a coloured AuthorBadge next to
+  // the picker — so the option text itself stays clean.
   const meeting = s.meeting ? ` · 📅 ${s.meeting}` : '';
-  return `${author}${s.name}${visibility}${status}${meeting}`;
+  return `${s.name}${visibility}${status}${meeting}`;
 }
 
 function authorName(a: Author): string {

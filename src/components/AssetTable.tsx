@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Asset, AssetSubItem, PERSON_IDS, PEOPLE, PersonId } from '../types';
 import { useIsActiveReadOnly, useStore } from '../state/store';
-import { formatEuro, formatPercent, uid } from '../lib/format';
+import { formatEuro, formatEuroCompact, formatPercent, uid } from '../lib/format';
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
 import { toneStyle } from '../lib/tones';
@@ -210,7 +210,7 @@ function TotalValueField({
         <input
           type="number"
           inputMode="decimal"
-          className="field w-44 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+          className="field w-32 pr-7 py-1.5 text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600 md:w-44"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
           disabled={readOnly}
@@ -300,15 +300,22 @@ function PersonShareCell({
   return (
     <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5">
       <div className="flex items-center justify-between gap-1">
-        <span className="flex items-center gap-1 text-xs font-medium text-slate-700">
+        <span className="flex min-w-0 items-center gap-1 text-xs font-medium text-slate-700">
           <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
+            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ background: gradient }}
             aria-hidden
           />
-          {name}
+          <span className="truncate">{name}</span>
         </span>
-        <span className="text-[10px] tabular-nums text-slate-400">{formatEuro(euro)}</span>
+        {/* Compact format on mobile keeps the cell from overflowing on narrow
+            screens; full format reads better on desktop. */}
+        <span className="shrink-0 text-[10px] tabular-nums text-slate-400 md:hidden">
+          {formatEuroCompact(euro)}
+        </span>
+        <span className="hidden shrink-0 text-[10px] tabular-nums text-slate-400 md:inline">
+          {formatEuro(euro)}
+        </span>
       </div>
       <div className="relative mt-1">
         <input
