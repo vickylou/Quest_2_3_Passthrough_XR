@@ -214,51 +214,29 @@ function CorrectionRow({
   canMoveDown: boolean;
   readOnly: boolean;
 }) {
+  // Faint tint of the correction's owner so each row reads as belonging to
+  // that sister at a glance — especially helpful when the same group has
+  // many entries. `1A` is ~10 % alpha, light enough to keep text readable.
+  const owner = PEOPLE.find((p) => p.id === c.person);
+  const tintBg = owner ? `${owner.colors.primary}1A` : 'white';
+  const tintBorder = owner ? `${owner.colors.primary}55` : '#e2e8f0';
   return (
-    <div className="grid grid-cols-12 items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-      <input
-        type="checkbox"
-        checked={c.active}
-        className="col-span-1 h-5 w-5 rounded border-slate-300 text-slate-700 focus:ring-slate-500 disabled:opacity-60"
-        onChange={(e) => onUpdate(c.id, (x) => ({ ...x, active: e.target.checked }))}
-        title={c.active ? 'Active — counts in balance' : 'Inactive — ignored'}
-        disabled={readOnly}
-      />
-      <select
-        className="field col-span-3 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-2"
-        value={c.person}
-        onChange={(e) => onUpdate(c.id, (x) => ({ ...x, person: e.target.value as PersonId }))}
-        disabled={readOnly}
-      >
-        {PEOPLE.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-      <input
-        className="field col-span-5 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-5"
-        placeholder="Note (e.g. free housing, parental support)"
-        value={c.note}
-        onChange={(e) => onUpdate(c.id, (x) => ({ ...x, note: e.target.value }))}
-        disabled={readOnly}
-      />
-      <div className="relative col-span-3 md:col-span-2">
+    <div
+      className="space-y-1.5 rounded-md border px-2 py-1.5"
+      style={{ background: tintBg, borderColor: tintBorder }}
+    >
+      {/* Note on its own full-width row so longer descriptions have room
+          and the controls below stay scannable. The ▲▼ controls live next
+          to the note so the bottom row is just the data fields. */}
+      <div className="flex items-center gap-1">
         <input
-          className="field py-1 pr-5 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
-          type="number"
-          inputMode="decimal"
-          value={c.amount}
-          onChange={(e) => onUpdate(c.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))}
-          onFocus={(e) => e.currentTarget.select()}
+          className="field flex-1 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600"
+          placeholder="Note (e.g. free housing, parental support)"
+          value={c.note}
+          onChange={(e) => onUpdate(c.id, (x) => ({ ...x, note: e.target.value }))}
           disabled={readOnly}
         />
-        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
-          €
-        </span>
-      </div>
-      {!readOnly && (
-        <div className="col-span-12 flex items-center justify-end md:col-span-2">
+        {!readOnly && (
           <MoveButtons
             onUp={onMoveUp}
             onDown={onMoveDown}
@@ -266,16 +244,54 @@ function CorrectionRow({
             canDown={canMoveDown}
             label="correction"
           />
+        )}
+      </div>
+      <div className="grid grid-cols-12 items-center gap-2">
+        <input
+          type="checkbox"
+          checked={c.active}
+          className="col-span-1 h-5 w-5 rounded border-slate-300 text-slate-700 focus:ring-slate-500 disabled:opacity-60"
+          onChange={(e) => onUpdate(c.id, (x) => ({ ...x, active: e.target.checked }))}
+          title={c.active ? 'Active — counts in balance' : 'Inactive — ignored'}
+          disabled={readOnly}
+        />
+        <select
+          className="field col-span-5 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-600 md:col-span-3"
+          value={c.person}
+          onChange={(e) => onUpdate(c.id, (x) => ({ ...x, person: e.target.value as PersonId }))}
+          disabled={readOnly}
+        >
+          {PEOPLE.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <div className="relative col-span-5 md:col-span-7">
+          <input
+            className="field py-1 pr-5 text-right text-sm tabular-nums disabled:bg-slate-50 disabled:text-slate-600"
+            type="number"
+            inputMode="decimal"
+            value={c.amount}
+            onChange={(e) => onUpdate(c.id, (x) => ({ ...x, amount: Number(e.target.value) || 0 }))}
+            onFocus={(e) => e.currentTarget.select()}
+            disabled={readOnly}
+          />
+          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+            €
+          </span>
+        </div>
+        {!readOnly && (
           <button
             onClick={() => onRemove(c.id)}
-            className="btn-ghost px-2 py-0.5 text-rose-600 hover:bg-rose-50"
+            className="btn-ghost col-span-1 px-2 py-0.5 text-rose-600 hover:bg-rose-50"
             title="Remove correction"
             aria-label="Remove correction"
           >
             ×
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
