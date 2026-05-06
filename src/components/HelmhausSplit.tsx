@@ -780,7 +780,7 @@ function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
         Faire Aufteilung (gleicher €/m² für beide):
       </div>
       <div className="grid grid-cols-4 gap-x-3 gap-y-1 tabular-nums">
-        <div className="font-semibold uppercase tracking-wide text-slate-400">EG minus</div>
+        <div className="font-semibold uppercase tracking-wide text-slate-400">EG-Wert minus</div>
         <div className="text-right font-semibold" style={{ color: '#2d5a8c' }}>
           Lisa · {OG_LISA_M2} m²
         </div>
@@ -823,7 +823,7 @@ function FloorOG() {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
             <span className="font-medium uppercase tracking-wide text-slate-400">
-              EG minus:
+              EG-Wert minus:
             </span>
             <span>
               −30 % ={' '}
