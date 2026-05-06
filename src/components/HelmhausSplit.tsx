@@ -765,7 +765,7 @@ function FloorEG() {
 }
 
 const OG_LISA_M2 = 29.82;
-const OG_VICKY_M2 = 66.1;
+const OG_VICKY_M2 = 65.51;
 
 function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
   const totalM2 = OG_LISA_M2 + OG_VICKY_M2;
@@ -909,7 +909,7 @@ function FloorOG() {
 
       <PartySection
         side="vicky"
-        label="Vicky-Gesamt OG (gelb + rosa) · ~66,10 m²"
+        label="Vicky-Gesamt OG (gelb + rosa) · ~65,51 m²"
         value={
           <EditableTotal
             value={ogVicky}
@@ -929,7 +929,7 @@ function FloorOG() {
             name={
               <>
                 <ColorDot color="#e3d68f" border="#c9b65d" />
-                Wohnung-Anteil · ~66,10 m² (gelb)
+                Wohnung-Anteil · ~65,51 m² (gelb)
               </>
             }
             value={fmt(122_700)}
@@ -1910,7 +1910,7 @@ type CardKey = keyof typeof DEFAULT_CARD_VALUES;
 const CARD_LABELS: Record<CardKey, string> = {
   eg: 'EG · Erdgeschoss',
   ogLisa: 'OG · Lisa-Teil (~29,82 m²)',
-  ogVicky: 'OG · Vicky-Teil (~66,10 m² + Außen)',
+  ogVicky: 'OG · Vicky-Teil (~65,51 m² + Außen)',
   praxis: 'KG · Praxis',
   lisaGarage: 'KG · Lisa-Garage (½)',
   vickyGarageLager: 'KG · Vicky-Garage (½) + Lager',
