@@ -19,14 +19,10 @@ export function ScenarioBar() {
   const duplicateActive = useStore((s) => s.duplicateActive);
   const deleteScenario = useStore((s) => s.deleteScenario);
   const setStatus = useStore((s) => s.setStatus);
-  const resetToDefault = useStore((s) => s.resetToDefault);
-  const loadExample = useStore((s) => s.loadExample);
-  const saveAsNew = useStore((s) => s.saveAsNew);
   const addBlankScenario = useStore((s) => s.addBlankScenario);
 
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
-  const [showSaveModal, setShowSaveModal] = useState(false);
   const [shareInfo, setShareInfo] = useState<{ url: string; copied: boolean } | null>(null);
 
   const active = all[activeId];
@@ -122,9 +118,6 @@ export function ScenarioBar() {
           setSharedWith={setSharedWith}
           duplicateActive={duplicateActive}
           deleteScenario={() => deleteScenario(activeId)}
-          resetToDefault={resetToDefault}
-          loadExample={loadExample}
-          openSaveModal={() => setShowSaveModal(true)}
           openShareLink={() => setShareInfo({ url: buildShareUrl(active), copied: false })}
           addBlankScenario={addBlankScenario}
         />
@@ -133,18 +126,6 @@ export function ScenarioBar() {
           active={active}
           duplicateActive={duplicateActive}
           addBlankScenario={addBlankScenario}
-        />
-      )}
-
-      {showSaveModal && (
-        <SaveAsModal
-          defaultName={`${active.name} – copy`}
-          defaultMeeting={active.meeting}
-          onCancel={() => setShowSaveModal(false)}
-          onSave={(payload) => {
-            saveAsNew(payload);
-            setShowSaveModal(false);
-          }}
         />
       )}
 
@@ -395,9 +376,6 @@ function MineToolbar({
   setSharedWith,
   duplicateActive,
   deleteScenario,
-  resetToDefault,
-  loadExample,
-  openSaveModal,
   openShareLink,
   addBlankScenario,
 }: {
@@ -411,9 +389,6 @@ function MineToolbar({
   setSharedWith: (a: Author[]) => void;
   duplicateActive: () => void;
   deleteScenario: () => void;
-  resetToDefault: () => void;
-  loadExample: () => void;
-  openSaveModal: () => void;
   openShareLink: () => void;
   addBlankScenario: () => void;
 }) {
@@ -427,7 +402,23 @@ function MineToolbar({
           <select
             className="field py-1 text-sm"
             value={active.visibility}
-            onChange={(e) => setVisibility(e.target.value as Visibility)}
+            onChange={(e) => {
+              const next = e.target.value as Visibility;
+              if (next === active.visibility) return;
+              if (next === 'public') {
+                if (
+                  !confirm(
+                    'Make this scenario public? Everyone in the family will see it automatically — no link needed.'
+                  )
+                ) {
+                  return;
+                }
+              }
+              setVisibility(next);
+              if (next === 'private' && active.visibility !== 'private') {
+                alert('This scenario is private to you again now.');
+              }
+            }}
             title="Who can see this scenario"
           >
             <option value="private">🔒 Private (just me)</option>
@@ -449,7 +440,7 @@ function MineToolbar({
           </div>
         )}
 
-        {active.visibility !== 'private' && (
+        {active.visibility === 'shared' && (
           <button
             className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
             onClick={openShareLink}
@@ -502,12 +493,6 @@ function MineToolbar({
             </button>
           </span>
         )}
-        <button
-          className="btn btn-compact bg-slate-700 text-white border-slate-700 hover:bg-slate-800"
-          onClick={openSaveModal}
-        >
-          Save as new
-        </button>
         <button className="btn btn-compact" onClick={duplicateActive}>
           Duplicate
         </button>
@@ -521,29 +506,6 @@ function MineToolbar({
         </button>
         <button className="btn btn-compact" onClick={() => exportScenarioPDF(active)}>
           Export PDF
-        </button>
-        <button
-          className="btn btn-compact"
-          onClick={() => {
-            if (
-              confirm(
-                'Load demo data? Three example scenarios will be added — current scenarios will be lost.'
-              )
-            )
-              loadExample();
-          }}
-        >
-          Load example
-        </button>
-        <button
-          className="btn-ghost px-2 py-1 text-xs text-slate-500"
-          onClick={() => {
-            if (confirm('Start fresh with a single blank scenario? Current scenarios will be lost.'))
-              resetToDefault();
-          }}
-          title="Reset to a single blank scenario"
-        >
-          Start fresh
         </button>
       </div>
     </>
