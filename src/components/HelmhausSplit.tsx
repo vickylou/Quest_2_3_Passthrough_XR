@@ -453,6 +453,7 @@ function FloorCard({
   subtitle,
   totalValue,
   totalNote,
+  headerExtra,
   image,
   imageAlt,
   colorLegend,
@@ -464,6 +465,7 @@ function FloorCard({
   subtitle?: string;
   totalValue: React.ReactNode;
   totalNote?: React.ReactNode;
+  headerExtra?: React.ReactNode;
   image?: string;
   imageAlt?: string;
   colorLegend?: React.ReactNode;
@@ -471,23 +473,26 @@ function FloorCard({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
-        <span
-          className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold tracking-wide text-slate-600"
-          style={{ borderColor: badgeColor }}
-        >
-          {badge}
-        </span>
-        <h4 className="m-0 flex-1 text-sm font-medium text-slate-500">
-          {title}{' '}
-          {subtitle && (
-            <small className="font-normal text-slate-400">({subtitle})</small>
-          )}
-        </h4>
-        <div className="text-base font-bold tabular-nums text-amber-700 md:text-lg">
-          {totalValue}
-          {totalNote}
+      <div className="mb-3 border-b border-slate-200 pb-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold tracking-wide text-slate-600"
+            style={{ borderColor: badgeColor }}
+          >
+            {badge}
+          </span>
+          <h4 className="m-0 flex-1 text-sm font-medium text-slate-500">
+            {title}{' '}
+            {subtitle && (
+              <small className="font-normal text-slate-400">({subtitle})</small>
+            )}
+          </h4>
+          <div className="text-base font-bold tabular-nums text-amber-700 md:text-lg">
+            {totalValue}
+            {totalNote}
+          </div>
         </div>
+        {headerExtra && <div className="mt-3">{headerExtra}</div>}
       </div>
       <div
         className={`grid gap-3 ${image ? 'grid-cols-1 md:grid-cols-[1fr_280px]' : 'grid-cols-1'}`}
@@ -769,8 +774,13 @@ function FloorEG() {
   );
 }
 
+const OG_LISA_M2 = 30;
+const OG_VICKY_M2 = 69;
+
 function FloorOG() {
-  const { ogTotal, ogLisa, setOgLisa, ogVicky, setOgVicky } = useScales();
+  const { egTotal, ogTotal, ogLisa, setOgLisa, ogVicky, setOgVicky } = useScales();
+  const lisaPerM2 = ogLisa / OG_LISA_M2;
+  const vickyPerM2 = ogVicky / OG_VICKY_M2;
   return (
     <FloorCard
       badge="OG · Obergeschoss"
@@ -778,6 +788,67 @@ function FloorOG() {
       title="Gesamtwert"
       subtitle="= Lisa-Teil + Vicky-Teil"
       totalValue={fmt(ogTotal)}
+      headerExtra={
+        <div className="space-y-2 text-xs">
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-1.5"
+            style={{ background: '#d9e9f7', borderColor: '#5a8fd6' }}
+          >
+            <span
+              className="text-[11px] font-bold uppercase tracking-wide"
+              style={{ color: '#2d5a8c' }}
+            >
+              Lisa-Teil OG · {OG_LISA_M2} m²
+            </span>
+            <div className="flex items-center gap-3">
+              <EditableTotal value={ogLisa} onChange={setOgLisa} color="#2d5a8c" size="sm" />
+              <span
+                className="tabular-nums whitespace-nowrap"
+                style={{ color: '#2d5a8c' }}
+              >
+                ≈ {fmt(Math.round(lisaPerM2))} / m²
+              </span>
+            </div>
+          </div>
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-1.5"
+            style={{ background: '#f4eecf', borderColor: '#c9b65d' }}
+          >
+            <span
+              className="text-[11px] font-bold uppercase tracking-wide"
+              style={{ color: '#7a6620' }}
+            >
+              Vicky-Teil OG · {OG_VICKY_M2} m²
+            </span>
+            <div className="flex items-center gap-3">
+              <EditableTotal value={ogVicky} onChange={setOgVicky} color="#7a6620" size="sm" />
+              <span
+                className="tabular-nums whitespace-nowrap"
+                style={{ color: '#7a6620' }}
+              >
+                ≈ {fmt(Math.round(vickyPerM2))} / m²
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-slate-500">
+            <span className="font-medium uppercase tracking-wide text-slate-400">
+              Vergleich EG:
+            </span>
+            <span>
+              30 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.3)}</strong>
+            </span>
+            <span>
+              20 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.2)}</strong>
+            </span>
+            <span>
+              25 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.25)}</strong>
+            </span>
+          </div>
+        </div>
+      }
       image="og.jpg"
       imageAlt="OG mit allen Farben"
       colorLegend={
@@ -797,7 +868,7 @@ function FloorOG() {
       <PartySection
         side="lisa"
         label="Lisa-Teil OG (blau) · ~30 m²"
-        value={<EditableTotal value={ogLisa} onChange={setOgLisa} color="#2d5a8c" size="sm" />}
+        value={<>≈ {fmt(Math.round(lisaPerM2))} / m²</>}
       >
         <SubExp label="Gebäude-Anteil Lisa-OG" smallLabel="(Wohnung)" value={fmt(53_300)}>
           <SubRow
@@ -839,7 +910,7 @@ function FloorOG() {
       <PartySection
         side="vicky"
         label="Vicky-Gesamt OG (gelb + rosa)"
-        value={<EditableTotal value={ogVicky} onChange={setOgVicky} color="#7a6620" size="sm" />}
+        value={<>≈ {fmt(Math.round(vickyPerM2))} / m²</>}
       >
         <SubExp
           label="Gebäude-Anteil Vicky-OG"
