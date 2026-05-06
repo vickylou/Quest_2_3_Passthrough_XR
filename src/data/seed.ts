@@ -172,6 +172,14 @@ function makeBaseScenario(
 export function blankScenario(author: Author = 'lisa'): Scenario {
   const now = Date.now();
   const zeroAlloc = { lisa: 0, vicky: 0, jackie: 0, alexa: 0 };
+  const zeroSplit = {
+    egTotal: 0,
+    ogLisa: 0,
+    ogVicky: 0,
+    praxisFull: 0,
+    dgFull: 0,
+    garageTotal: 0,
+  };
   return {
     id: 'blank',
     name: 'My new scenario',
@@ -182,7 +190,12 @@ export function blankScenario(author: Author = 'lisa'): Scenario {
     createdAt: now,
     updatedAt: now,
     status: 'draft',
-    assets: defaultAssets().map((a) => ({ ...a, allocations: { ...zeroAlloc } })),
+    assets: defaultAssets().map((a) => ({
+      ...a,
+      value: 0,
+      allocations: { ...zeroAlloc },
+      ...(a.id === HELMHAUS_ID ? { helmhausSplit: { ...zeroSplit } } : {}),
+    })),
     transfers: [],
     corrections: [],
   };

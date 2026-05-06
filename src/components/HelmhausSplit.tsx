@@ -523,11 +523,14 @@ function EditableTotal({
   onChange,
   color = '#b45309',
   size = 'lg',
+  perM2,
 }: {
   value: number;
   onChange: (n: number) => void;
   color?: string;
   size?: 'sm' | 'lg';
+  /** If set, the suffix shows €/m² (value ÷ perM2) instead of the running Helmhaus total. */
+  perM2?: number;
 }) {
   const { helmhausTotal } = useScales();
   // stopPropagation prevents tapping the input from also toggling the
@@ -557,8 +560,12 @@ function EditableTotal({
         }}
         title="Editable — Lisa- / Vicky-Gesamt aktualisieren sich automatisch"
       />
-      <span className="text-[10px] tabular-nums text-slate-400 whitespace-nowrap">
-        Total {fmt(helmhausTotal)}
+      <span className="text-[10px] tabular-nums whitespace-nowrap" style={{ color: perM2 ? color : undefined }}>
+        {perM2 && perM2 > 0 ? (
+          <>≈ {fmt(Math.round(value / perM2))} / m²</>
+        ) : (
+          <span className="text-slate-400">Total {fmt(helmhausTotal)}</span>
+        )}
       </span>
     </div>
   );
@@ -779,8 +786,6 @@ const OG_VICKY_M2 = 69;
 
 function FloorOG() {
   const { egTotal, ogTotal, ogLisa, setOgLisa, ogVicky, setOgVicky } = useScales();
-  const lisaPerM2 = ogLisa / OG_LISA_M2;
-  const vickyPerM2 = ogVicky / OG_VICKY_M2;
   return (
     <FloorCard
       badge="OG · Obergeschoss"
@@ -789,64 +794,22 @@ function FloorOG() {
       subtitle="= Lisa-Teil + Vicky-Teil"
       totalValue={fmt(ogTotal)}
       headerExtra={
-        <div className="space-y-2 text-xs">
-          <div
-            className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-1.5"
-            style={{ background: '#d9e9f7', borderColor: '#5a8fd6' }}
-          >
-            <span
-              className="text-[11px] font-bold uppercase tracking-wide"
-              style={{ color: '#2d5a8c' }}
-            >
-              Lisa-Teil OG · {OG_LISA_M2} m²
-            </span>
-            <div className="flex items-center gap-3">
-              <EditableTotal value={ogLisa} onChange={setOgLisa} color="#2d5a8c" size="sm" />
-              <span
-                className="tabular-nums whitespace-nowrap"
-                style={{ color: '#2d5a8c' }}
-              >
-                ≈ {fmt(Math.round(lisaPerM2))} / m²
-              </span>
-            </div>
-          </div>
-          <div
-            className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-1.5"
-            style={{ background: '#f4eecf', borderColor: '#c9b65d' }}
-          >
-            <span
-              className="text-[11px] font-bold uppercase tracking-wide"
-              style={{ color: '#7a6620' }}
-            >
-              Vicky-Teil OG · {OG_VICKY_M2} m²
-            </span>
-            <div className="flex items-center gap-3">
-              <EditableTotal value={ogVicky} onChange={setOgVicky} color="#7a6620" size="sm" />
-              <span
-                className="tabular-nums whitespace-nowrap"
-                style={{ color: '#7a6620' }}
-              >
-                ≈ {fmt(Math.round(vickyPerM2))} / m²
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-slate-500">
-            <span className="font-medium uppercase tracking-wide text-slate-400">
-              Vergleich EG:
-            </span>
-            <span>
-              30 % ={' '}
-              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.3)}</strong>
-            </span>
-            <span>
-              20 % ={' '}
-              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.2)}</strong>
-            </span>
-            <span>
-              25 % ={' '}
-              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.25)}</strong>
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+          <span className="font-medium uppercase tracking-wide text-slate-400">
+            Vergleich EG:
+          </span>
+          <span>
+            30 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.3)}</strong>
+          </span>
+          <span>
+            20 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.2)}</strong>
+          </span>
+          <span>
+            25 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.25)}</strong>
+          </span>
         </div>
       }
       image="og.jpg"
@@ -868,7 +831,15 @@ function FloorOG() {
       <PartySection
         side="lisa"
         label="Lisa-Teil OG (blau) · ~30 m²"
-        value={<>≈ {fmt(Math.round(lisaPerM2))} / m²</>}
+        value={
+          <EditableTotal
+            value={ogLisa}
+            onChange={setOgLisa}
+            color="#2d5a8c"
+            size="sm"
+            perM2={OG_LISA_M2}
+          />
+        }
       >
         <SubExp label="Gebäude-Anteil Lisa-OG" smallLabel="(Wohnung)" value={fmt(53_300)}>
           <SubRow
@@ -910,7 +881,15 @@ function FloorOG() {
       <PartySection
         side="vicky"
         label="Vicky-Gesamt OG (gelb + rosa)"
-        value={<>≈ {fmt(Math.round(vickyPerM2))} / m²</>}
+        value={
+          <EditableTotal
+            value={ogVicky}
+            onChange={setOgVicky}
+            color="#7a6620"
+            size="sm"
+            perM2={OG_VICKY_M2}
+          />
+        }
       >
         <SubExp
           label="Gebäude-Anteil Vicky-OG"
