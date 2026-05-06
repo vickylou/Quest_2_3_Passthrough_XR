@@ -697,7 +697,18 @@ function FloorEG() {
         </>
       }
     >
-      <PartySection side="lisa" label="Lisa-Gesamt EG (blau)" value={fmt(egTotal)}>
+      <PartySection
+        side="lisa"
+        label={`Lisa-Gesamt EG (blau) · ${EG_LISA_M2} m²`}
+        value={
+          <span className="flex items-center gap-3">
+            <span>{fmt(egTotal)}</span>
+            <span className="text-[10px] tabular-nums whitespace-nowrap" style={{ color: '#2d5a8c' }}>
+              ≈ {fmt(Math.round(egTotal / EG_LISA_M2))} / m²
+            </span>
+          </span>
+        }
+      >
         <SubExp
           label="Gebäude-Anteil EG"
           smallLabel="(Wohnung + Außen)"
@@ -764,6 +775,7 @@ function FloorEG() {
   );
 }
 
+const EG_LISA_M2 = 103;
 const OG_LISA_M2 = 29.82;
 const OG_VICKY_M2 = 65.51;
 
