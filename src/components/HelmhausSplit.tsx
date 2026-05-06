@@ -767,6 +767,49 @@ function FloorEG() {
 const OG_LISA_M2 = 30;
 const OG_VICKY_M2 = 69;
 
+function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
+  const totalM2 = OG_LISA_M2 + OG_VICKY_M2;
+  const cases = [
+    { label: '−30 %', total: egTotal * 0.7 },
+    { label: '−25 %', total: egTotal * 0.75 },
+    { label: '−20 %', total: egTotal * 0.8 },
+  ];
+  return (
+    <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px]">
+      <div className="mb-1.5 font-medium uppercase tracking-wide text-slate-400">
+        Faire Aufteilung (gleicher €/m² für beide):
+      </div>
+      <div className="grid grid-cols-4 gap-x-3 gap-y-1 tabular-nums">
+        <div className="font-semibold uppercase tracking-wide text-slate-400">EG minus</div>
+        <div className="text-right font-semibold" style={{ color: '#2d5a8c' }}>
+          Lisa · {OG_LISA_M2} m²
+        </div>
+        <div className="text-right font-semibold" style={{ color: '#7a6620' }}>
+          Vicky · {OG_VICKY_M2} m²
+        </div>
+        <div className="text-right font-semibold text-slate-400">€ / m²</div>
+        {cases.flatMap(({ label, total }) => {
+          const perM2 = totalM2 ? total / totalM2 : 0;
+          return [
+            <div key={label + '-l'} className="text-slate-700">
+              {label}
+            </div>,
+            <div key={label + '-li'} className="text-right" style={{ color: '#2d5a8c' }}>
+              {fmt(Math.round(perM2 * OG_LISA_M2))}
+            </div>,
+            <div key={label + '-v'} className="text-right" style={{ color: '#7a6620' }}>
+              {fmt(Math.round(perM2 * OG_VICKY_M2))}
+            </div>,
+            <div key={label + '-pm'} className="text-right text-slate-500">
+              {fmt(Math.round(perM2))}
+            </div>,
+          ];
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FloorOG() {
   const { egTotal, ogTotal, ogLisa, setOgLisa, ogVicky, setOgVicky } = useScales();
   return (
@@ -777,22 +820,25 @@ function FloorOG() {
       subtitle="= Lisa-Teil + Vicky-Teil"
       totalValue={fmt(ogTotal)}
       headerExtra={
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-          <span className="font-medium uppercase tracking-wide text-slate-400">
-            EG minus:
-          </span>
-          <span>
-            −30 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.7)}</strong>
-          </span>
-          <span>
-            −25 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.75)}</strong>
-          </span>
-          <span>
-            −20 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.8)}</strong>
-          </span>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            <span className="font-medium uppercase tracking-wide text-slate-400">
+              EG minus:
+            </span>
+            <span>
+              −30 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.7)}</strong>
+            </span>
+            <span>
+              −25 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.75)}</strong>
+            </span>
+            <span>
+              −20 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.8)}</strong>
+            </span>
+          </div>
+          <FairSplitSuggestion egTotal={egTotal} />
         </div>
       }
       image="og.jpg"
