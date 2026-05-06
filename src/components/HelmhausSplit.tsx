@@ -764,8 +764,8 @@ function FloorEG() {
   );
 }
 
-const OG_LISA_M2 = 30;
-const OG_VICKY_M2 = 69;
+const OG_LISA_M2 = 17.79;
+const OG_VICKY_M2 = 66.1;
 
 function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
   const totalM2 = OG_LISA_M2 + OG_VICKY_M2;
@@ -782,10 +782,10 @@ function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
       <div className="grid grid-cols-4 gap-x-3 gap-y-1 tabular-nums">
         <div className="font-semibold uppercase tracking-wide text-slate-400">EG-Wert minus</div>
         <div className="text-right font-semibold" style={{ color: '#2d5a8c' }}>
-          Lisa · {OG_LISA_M2} m²
+          Lisa · {OG_LISA_M2.toLocaleString('de-DE')} m²
         </div>
         <div className="text-right font-semibold" style={{ color: '#7a6620' }}>
-          Vicky · {OG_VICKY_M2} m²
+          Vicky · {OG_VICKY_M2.toLocaleString('de-DE')} m²
         </div>
         <div className="text-right font-semibold text-slate-400">€ / m²</div>
         {cases.flatMap(({ label, total }) => {
@@ -859,7 +859,7 @@ function FloorOG() {
     >
       <PartySection
         side="lisa"
-        label="Lisa-Teil OG (blau) · ~30 m²"
+        label="Lisa-Teil OG (blau) · ~17,79 m²"
         value={
           <EditableTotal
             value={ogLisa}
@@ -875,7 +875,7 @@ function FloorOG() {
             name={
               <>
                 <ColorDot color="#a4c3e3" border="#5a8fd6" />
-                Wohnung-Anteil · ~30 m² (blau)
+                Wohnung-Anteil · ~17,79 m² (blau)
               </>
             }
             value={fmt(53_300)}
@@ -929,7 +929,7 @@ function FloorOG() {
             name={
               <>
                 <ColorDot color="#e3d68f" border="#c9b65d" />
-                Wohnung-Anteil · ~69 m² (gelb)
+                Wohnung-Anteil · ~66,10 m² (gelb)
               </>
             }
             value={fmt(122_700)}
@@ -1909,8 +1909,8 @@ type CardKey = keyof typeof DEFAULT_CARD_VALUES;
 
 const CARD_LABELS: Record<CardKey, string> = {
   eg: 'EG · Erdgeschoss',
-  ogLisa: 'OG · Lisa-Teil (~30 m²)',
-  ogVicky: 'OG · Vicky-Teil (~69 m² + Außen)',
+  ogLisa: 'OG · Lisa-Teil (~17,79 m²)',
+  ogVicky: 'OG · Vicky-Teil (~66,10 m² + Außen)',
   praxis: 'KG · Praxis',
   lisaGarage: 'KG · Lisa-Garage (½)',
   vickyGarageLager: 'KG · Vicky-Garage (½) + Lager',
