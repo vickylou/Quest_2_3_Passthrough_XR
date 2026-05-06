@@ -220,10 +220,8 @@ export function HelmhausSplit() {
   return (
     <ScaleCtx.Provider value={scales}>
     <div className="space-y-4 text-sm leading-relaxed text-slate-800">
-      <Header />
-      <Hero />
       <Section num={1} title="Bereichs-Schätzung">
-        <BreakdownExplanation />
+        <ValuationHeadline />
       </Section>
       <Section num={2} title="Aufteilung">
         <Legend />
@@ -265,46 +263,31 @@ function ViewTile({ file, title, desc }: { file: string; title: string; desc: st
   );
 }
 
-function Header() {
-  return (
-    <div className="text-center">
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-        Erbschaft · Helm Haus · Uderns
-      </div>
-      <h2 className="m-0 text-xl font-bold tracking-tight md:text-2xl">
-        Bereichs-Schätzung &amp; physische Aufteilung
-      </h2>
-      <div className="mt-1 text-xs text-slate-500">
-        Lisa &amp; Vicky · ~72/28 Aufteilung (Restausgleich via Baugrund) · Stand 27.04.2026
-      </div>
-    </div>
-  );
-}
-
-function Hero() {
+function ValuationHeadline() {
   return (
     <div
-      className="rounded-2xl border border-amber-200 p-4 shadow-sm md:p-6"
+      className="rounded-xl border border-amber-200 p-3 shadow-sm md:p-4"
       style={{ background: 'linear-gradient(135deg, #fdf8ec 0%, #fbf2dc 100%)' }}
     >
-      <div className="flex flex-col gap-3">
-        <div
-          className="flex flex-col items-start gap-2 rounded-xl border-2 border-amber-200 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
-          style={{ background: 'linear-gradient(90deg, #fbf2dc 0%, #fdf8ec 100%)' }}
-        >
-          <div className="flex-1">
-            <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-amber-700">
-              Verkehrswert (Schätzung 27.02.2024)
-            </div>
-            <div className="mt-0.5 text-xs text-slate-500">
-              PlanetHome · Sachwertverfahren · inkl. DG (unausgebaut)
-            </div>
-          </div>
-          <div className="text-2xl font-bold tabular-nums text-amber-700 md:text-3xl">
-            {fmt(1_321_141)}
-          </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-amber-700">
+          Verkehrswertschätzung
+          <span className="ml-2 font-normal normal-case text-slate-500">
+            PlanetHome · 27.02.2024
+          </span>
+        </div>
+        <div className="text-2xl font-bold tabular-nums text-amber-700 md:text-3xl">
+          {fmt(1_321_141)}
         </div>
       </div>
+      <details className="helm-disclosure mt-3 rounded-md border border-amber-200 bg-white">
+        <summary className="cursor-pointer px-3 py-1.5 text-xs font-semibold text-slate-600">
+          Details: Komponenten der Schätzung
+        </summary>
+        <div className="border-t border-amber-200 p-3">
+          <BreakdownExplanation />
+        </div>
+      </details>
     </div>
   );
 }
@@ -333,7 +316,7 @@ function Section({
 
 function BreakdownExplanation() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div>
       <p className="text-sm leading-relaxed">
         <strong>Der Verkehrswert {fmt(1_321_141)} setzt sich aus 4 Komponenten zusammen:</strong>
       </p>
