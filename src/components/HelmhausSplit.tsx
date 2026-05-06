@@ -815,6 +815,8 @@ function FairSplitSuggestion({ egTotal }: { egTotal: number }) {
     { label: '−30 %', total: egTotal * 0.7 },
     { label: '−25 %', total: egTotal * 0.75 },
     { label: '−20 %', total: egTotal * 0.8 },
+    { label: '−15 %', total: egTotal * 0.85 },
+    { label: '−10 %', total: egTotal * 0.9 },
   ];
   return (
     <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px]">
@@ -878,6 +880,14 @@ function FloorOG() {
             <span>
               −20 % ={' '}
               <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.8)}</strong>
+            </span>
+            <span>
+              −15 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.85)}</strong>
+            </span>
+            <span>
+              −10 % ={' '}
+              <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.9)}</strong>
             </span>
           </div>
           <FairSplitSuggestion egTotal={egTotal} />
