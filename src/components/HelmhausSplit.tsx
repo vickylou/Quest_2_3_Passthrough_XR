@@ -796,19 +796,19 @@ function FloorOG() {
       headerExtra={
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
           <span className="font-medium uppercase tracking-wide text-slate-400">
-            Vergleich EG:
+            EG minus:
           </span>
           <span>
-            30 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.3)}</strong>
+            −30 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.7)}</strong>
           </span>
           <span>
-            20 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.2)}</strong>
+            −25 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.75)}</strong>
           </span>
           <span>
-            25 % ={' '}
-            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.25)}</strong>
+            −20 % ={' '}
+            <strong className="tabular-nums text-slate-700">{fmt(egTotal * 0.8)}</strong>
           </span>
         </div>
       }
