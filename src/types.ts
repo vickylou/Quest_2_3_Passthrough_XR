@@ -232,6 +232,13 @@ export interface PersistedState {
   viewerId: Author;
   /** Last time any change was persisted (epoch ms). Used for the "saved" indicator. */
   lastSavedAt?: number;
+  /**
+   * Tombstones for scenarios this device deleted. We never re-pull a
+   * scenario whose id is in this list — protects against (a) a failed
+   * cloud-delete leaving the row alive on the server, and (b) another
+   * device's backfill re-pushing a not-yet-deleted local copy.
+   */
+  deletedIds?: string[];
 }
 
 export interface Balances {

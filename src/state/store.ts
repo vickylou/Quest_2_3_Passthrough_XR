@@ -348,10 +348,23 @@ export const useStore = create<StoreState>()((set, get) => ({
       // Soft-delete on the cloud — even private rows live there now (RLS
       // keeps them owner-only) so deletes need to propagate too.
       void syncDelete(id);
+      // Tombstone: if cloudDelete fails, or another device's backfill
+      // re-pushes a stale copy, we still won't re-add the scenario locally.
+      const tombstones = new Set(s.deletedIds ?? []);
+      tombstones.add(id);
       const ids = Object.keys(remaining);
-      if (ids.length === 0) return persistAndReturn(defaultState(s.viewerId));
+      if (ids.length === 0)
+        return persistAndReturn({
+          ...defaultState(s.viewerId),
+          deletedIds: [...tombstones],
+        });
       const activeId = s.activeId === id ? ids[0] : s.activeId;
-      return persistAndReturn({ ...s, scenarios: remaining, activeId });
+      return persistAndReturn({
+        ...s,
+        scenarios: remaining,
+        activeId,
+        deletedIds: [...tombstones],
+      });
     }),
 
   setStatus: (status) =>

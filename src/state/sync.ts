@@ -36,23 +36,27 @@ export function isCloudConfigured(): boolean {
   return loadCloudConfig() !== null;
 }
 
-/** Pulls everything visible to the signed-in user (server-side RLS-filtered). */
+/** Pulls everything visible to the signed-in user (server-side RLS-filtered).
+ *  `deletedIds` is a per-device tombstone list — scenarios whose ids appear
+ *  there are kept out of the merged result and out of the backfill push,
+ *  so a stale-but-undeleted cloud row (or a re-push from another device)
+ *  can't undo a delete the user has already performed locally. */
 export async function syncPull(
   localScenarios: Record<string, Scenario>,
-  viewerRole?: Scenario['author']
+  viewerRole?: Scenario['author'],
+  deletedIds?: string[]
 ): Promise<{ scenarios: Record<string, Scenario>; pulled: number }> {
   const config = loadCloudConfig();
   if (!config) return { scenarios: localScenarios, pulled: 0 };
   setStatus({ kind: 'syncing', message: 'Pulling scenarios…' });
   try {
-    const remote = await pullScenarios(config.familyId);
+    const tombstones = new Set(deletedIds ?? []);
+    const remoteRaw = await pullScenarios(config.familyId);
+    const remote = remoteRaw.filter((r) => !tombstones.has(r.id));
     const merged = mergeRemote(localScenarios, remote);
-    // After merging, push up any owned scenarios that aren't already in
-    // the cloud — this is the one-time backfill that cloud-backs the
-    // user's existing local-only private drafts.
     if (viewerRole) {
-      const remoteIds = new Set(remote.map((r) => r.id));
-      void backfillOwnedLocal(merged, remoteIds, viewerRole);
+      const remoteIds = new Set(remoteRaw.map((r) => r.id));
+      void backfillOwnedLocal(merged, remoteIds, viewerRole, tombstones);
     }
     setStatus({ kind: 'success', pulled: remote.length, pushedAt: Date.now() });
     return { scenarios: merged, pulled: remote.length };
@@ -93,12 +97,13 @@ export async function syncPushOne(
 export async function backfillOwnedLocal(
   scenarios: Record<string, Scenario>,
   remoteIds: Set<string>,
-  viewerRole: Scenario['author']
+  viewerRole: Scenario['author'],
+  tombstones: Set<string> = new Set()
 ): Promise<void> {
   const config = loadCloudConfig();
   if (!config) return;
   const owned = Object.values(scenarios).filter(
-    (s) => s.author === viewerRole && !remoteIds.has(s.id)
+    (s) => s.author === viewerRole && !remoteIds.has(s.id) && !tombstones.has(s.id)
   );
   for (const sc of owned) {
     try {

@@ -12,6 +12,7 @@ export function SyncIndicator() {
   const scenarios = useStore((s) => s.scenarios);
   const replaceAll = useStore((s) => s.replaceAll);
   const activeId = useStore((s) => s.activeId);
+  const deletedIds = useStore((s) => s.deletedIds);
 
   const configured = isCloudConfigured();
 
@@ -34,7 +35,7 @@ export function SyncIndicator() {
   }, [authed, viewerId, configured]);
 
   async function runPull() {
-    const { scenarios: merged, pulled } = await syncPull(scenarios, viewerId);
+    const { scenarios: merged, pulled } = await syncPull(scenarios, viewerId, deletedIds);
     if (pulled > 0) {
       replaceAll({
         schemaVersion: 3,
@@ -42,6 +43,7 @@ export function SyncIndicator() {
         scenarios: merged,
         viewerId,
         lastSavedAt: Date.now(),
+        deletedIds,
       });
     }
   }
