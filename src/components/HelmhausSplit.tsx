@@ -85,6 +85,36 @@ const fmt = (n: number) =>
     maximumFractionDigits: 0,
   });
 
+/**
+ * Lisa/Vicky % shares derived from a HelmhausSplit, used as a "suggestion"
+ * on the main Helmhaus asset card. Returns null when the split is empty
+ * (all zeros) — there's nothing meaningful to suggest in that case.
+ */
+export function computeHelmhausShares(
+  split: HelmhausSplitValues
+): { lisaPercent: number; vickyPercent: number } | null {
+  const allZero =
+    split.egTotal === 0 &&
+    split.ogLisa === 0 &&
+    split.ogVicky === 0 &&
+    split.praxisFull === 0 &&
+    split.dgFull === 0 &&
+    split.garageTotal === 0;
+  if (allZero) return null;
+  const garageDenom = A.LISA_GARAGE + A.VICKY_GARAGE;
+  const lisaGarage = (split.garageTotal * A.LISA_GARAGE) / garageDenom;
+  const vickyGarage = (split.garageTotal * A.VICKY_GARAGE) / garageDenom;
+  const lisaTotal =
+    split.egTotal + split.ogLisa + split.praxisFull + lisaGarage + split.dgFull + A.ALLG_HALF;
+  const vickyTotal = split.ogVicky + vickyGarage + A.ALLG_HALF;
+  const total = lisaTotal + vickyTotal;
+  if (total <= 0) return null;
+  return {
+    lisaPercent: (lisaTotal / total) * 100,
+    vickyPercent: (vickyTotal / total) * 100,
+  };
+}
+
 export function HelmhausSplit() {
   // Read the persisted Helmhaus split from the active scenario's Helmhaus
   // asset (if any). Fall back to the appraisal anchors. We sync changes
@@ -1024,7 +1054,7 @@ function FloorKGPraxis() {
       title="Gesamtwert"
       subtitle="nur Praxis, ohne Garage"
       totalValue={<EditableTotal value={praxisFull} onChange={setPraxisFull} />}
-      image="kg.jpg"
+      image="kg-praxis.jpg"
       imageAlt="KG gefärbt · Praxis blau"
       colorLegend={
         <>
@@ -1083,7 +1113,7 @@ function FloorKGGarage() {
       title="Gesamtwert"
       subtitle="Garage halbiert + Lager Vicky"
       totalValue={<EditableTotal value={garageTotal} onChange={setGarageTotal} />}
-      image="kg.jpg"
+      image="kg-garage.jpg"
       imageAlt="KG · Garage halbiert + Lager"
       colorLegend={
         <>

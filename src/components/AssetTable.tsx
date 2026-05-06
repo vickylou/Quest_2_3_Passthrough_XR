@@ -13,7 +13,7 @@ import { useIsActiveReadOnly, useStore } from '../state/store';
 import { formatEuro, formatEuroCompact, formatPercent, uid } from '../lib/format';
 import { suggestProportional } from '../lib/balances';
 import { AssetIllustration } from './icons/AssetIllustration';
-import { HelmhausSplit } from './HelmhausSplit';
+import { HelmhausSplit, computeHelmhausShares } from './HelmhausSplit';
 import { MoveButtons } from './MoveButtons';
 import { toneStyle } from '../lib/tones';
 import { HELMHAUS_ID, LANDWIRTSCHAFT_ID, WEBERHAUS_ID } from '../data/seed';
@@ -880,11 +880,31 @@ function PercentGrid({
     }));
   }
 
+  // Helmhaus-only: derive Lisa/Vicky % suggestions from the internal split.
+  const helmhausShares =
+    asset.id === HELMHAUS_ID && asset.helmhausSplit
+      ? computeHelmhausShares(asset.helmhausSplit)
+      : null;
+
+  function applySplitHint(person: PersonId, value: number) {
+    setAnchor(person);
+    onChange((a) => ({
+      ...a,
+      allocations: { ...a.allocations, [person]: roundTo(value, 2) },
+    }));
+  }
+
   return (
     <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
       {PEOPLE.map((p) => {
         const current = asset.allocations[p.id] ?? 0;
         const sug = suggestion && anchor !== p.id ? suggestion[p.id] : null;
+        const splitHint =
+          helmhausShares && (p.id === 'lisa' || p.id === 'vicky')
+            ? p.id === 'lisa'
+              ? helmhausShares.lisaPercent
+              : helmhausShares.vickyPercent
+            : null;
         return (
           <PersonShareCell
             key={p.id}
@@ -893,8 +913,12 @@ function PercentGrid({
             percent={current}
             euro={(asset.totalValue * current) / 100}
             suggestion={sug}
+            splitHint={splitHint}
             onChange={(v) => setShare(p.id, v)}
             onAcceptSuggestion={applySuggestion}
+            onAcceptSplitHint={
+              splitHint !== null ? () => applySplitHint(p.id, splitHint) : undefined
+            }
             readOnly={readOnly}
             valueColor={valueColor}
           />
@@ -910,8 +934,10 @@ function PersonShareCell({
   percent,
   euro,
   suggestion,
+  splitHint,
   onChange,
   onAcceptSuggestion,
+  onAcceptSplitHint,
   readOnly,
   valueColor,
 }: {
@@ -920,8 +946,10 @@ function PersonShareCell({
   percent: number;
   euro: number;
   suggestion: number | null;
+  splitHint?: number | null;
   onChange: (v: number) => void;
   onAcceptSuggestion: () => void;
+  onAcceptSplitHint?: () => void;
   readOnly: boolean;
   valueColor: string;
 }) {
@@ -986,6 +1014,25 @@ function PersonShareCell({
           </button>
         )}
       </div>
+      {splitHint !== null && splitHint !== undefined && (
+        <div className="h-3.5 leading-none">
+          {Math.abs(splitHint - percent) > 0.01 && !readOnly ? (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onAcceptSplitHint}
+              className="text-[10px] italic text-slate-500 hover:text-slate-800"
+              title="Aus Bereichs-Schätzung übernehmen"
+            >
+              ⓘ Schätzung: {splitHint.toFixed(2)} %
+            </button>
+          ) : (
+            <span className="text-[10px] italic text-slate-400">
+              ⓘ Schätzung: {splitHint.toFixed(2)} %
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
